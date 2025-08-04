@@ -22,7 +22,11 @@ const uri = process.env.MONGO_URI;
 const client = new MongoClient(uri, {
   useNewUrlParser: true,
   useUnifiedTopology: true,
+  tls: true,                  // Force TLS
+  tlsAllowInvalidCertificates: false, // Keep TLS strict
+  serverSelectionTimeoutMS: 5000      // Optional: timeout faster if fail
 });
+
 
 async function startServer() {
   try {
