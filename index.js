@@ -15,18 +15,12 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// API routes first
-app.use('/api/idf', idfRoute);
-
+// === 1. MongoDB Setup ===
 const uri = process.env.MONGO_URI;
 const client = new MongoClient(uri, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-  tls: true,                  // Force TLS
-  tlsAllowInvalidCertificates: false, // Keep TLS strict
-  serverSelectionTimeoutMS: 5000      // Optional: timeout faster if fail
+  tls: true,                       // Ensure TLS for Render
+  serverSelectionTimeoutMS: 5000,  // Faster fail on bad connection
 });
-
 
 async function startServer() {
   try {
@@ -35,32 +29,35 @@ async function startServer() {
     app.locals.db = db;
     console.log('✅ Connected to MongoDB Atlas');
 
+    // Middleware to attach DB to every request
     app.use((req, res, next) => {
       req.db = db;
       next();
     });
 
-    // Other API routes
+    // === 2. API Routes ===
+    app.use('/api/idf', idfRoute);
     app.use('/api/contact', contactRoute);
     app.use('/api/enrich-location', enrichRoute);
     app.use('/api/project', projectRoute);
     app.use('/api/report', reportRoute);
 
-    // === NEW: Serve React frontend build for deployment ===
+    // === 3. Serve React Frontend (Production) ===
     app.use(express.static(path.join(__dirname, 'client/build')));
 
-    app.get('*', (req, res) => {
+    // Catch-all route for React (Express 4 compatible)
+    app.get('/*', (req, res) => {
       res.sendFile(path.join(__dirname, 'client/build', 'index.html'));
     });
-    // ======================================================
 
+    // === 4. Start Server ===
     const PORT = process.env.PORT || 3000;
     app.listen(PORT, () => {
       console.log(`🚀 Server running on port ${PORT}`);
     });
   } catch (err) {
-    console.error('❌ Failed to connect to MongoDB:', err);
-    process.exit(1); // Exit if DB fails
+    console.error('❌ Failed to connect to MongoDB or start server:', err);
+    process.exit(1); // Exit if DB or server fails
   }
 }
 
