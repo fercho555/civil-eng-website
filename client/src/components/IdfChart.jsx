@@ -1,135 +1,173 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
+import { Line } from 'react-chartjs-2';
 import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
-} from 'recharts';
-import downloadjs from 'downloadjs';
-import html2canvas from 'html2canvas';
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  LogarithmicScale,
+  PointElement,
+  LineElement,
+  Title,
+  Tooltip,
+  Legend,
+} from 'chart.js';
+import IdfTable from './IdfTable';
 
-// ✅ Colors for return periods
-const COLORS = {
-  '2yr': 'red',
-  '5yr': 'gold',
-  '10yr': 'green',
-  '25yr': 'skyblue',
-  '50yr': 'blue',
-  '100yr': 'magenta'
-};
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  LogarithmicScale,
+  PointElement,
+  LineElement,
+  Title,
+  Tooltip,
+  Legend
+);
 
-const labelMap = {
-  '2yr': '2 yr',
-  '5yr': '5 yr',
-  '10yr': '10 yr',
-  '25yr': '25 yr',
-  '50yr': '50 yr',
-  '100yr': '100 yr'
-};
+const IdfChart = ({ stationId, locationName }) => {
+  const [chartData, setChartData] = useState({ datasets: [] });
+  const [tableData, setTableData] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const API_URL = 'http://127.0.0.1:5000/api';
 
-// ✅ Convert IDF JSON to Recharts array with duration in minutes
-function normalizeIdfData(idfRaw) {
-  if (!idfRaw) return [];
-
-  const durations = [
-    '5 min', '10 min', '15 min', '30 min',
-    '60 min', '120 min', '180 min', '240 min', '1440 min'
-  ];
-
-  // Map for converting to total minutes for X-axis
-  const toMinutes = (label) => {
-    const [num, unit] = label.split(' ');
-    return unit.startsWith('min') ? parseInt(num) : parseInt(num) * 60;
+  // Helper function to get human-readable duration labels
+  const getDurationLabel = (durationInMinutes) => {
+    if (durationInMinutes < 60) return `${durationInMinutes} min`;
+    return `${durationInMinutes / 60} h`;
   };
 
-  const chartData = durations.map(dur => {
-    const entry = { duration: toMinutes(dur) }; // numeric for log scale
-    Object.keys(idfRaw).forEach(rp => {
-      entry[rp] = idfRaw[rp]?.[dur] ?? null;
-    });
-    return entry;
-  });
+  useEffect(() => {
+    const fetchData = async () => {
+      if (!stationId) {
+        setChartData({ datasets: [] });
+        setTableData([]);
+        return;
+      }
+      setLoading(true);
 
-  console.log("📊 Normalized IDF data for chart:", chartData);
-  return chartData;
-}
+      try {
+        const idfResponse = await fetch(`${API_URL}/idf/curves?stationId=${String(stationId)}`);
+        if (!idfResponse.ok) {
+          throw new Error('IDF data not found');
+        }
+        const { data: idfData } = await idfResponse.json();
 
-export default function IdfChart({ idf }) {
-  if (!idf) return null;
+        idfData.sort((a, b) => a.duration - b.duration);
 
-  const data = normalizeIdfData(idf);
+        // Extract all unique durations to use as x-axis labels
+        const allDurations = [...new Set(idfData.map(d => d.duration))].sort((a, b) => a - b);
+        const durationLabels = allDurations.map(d => getDurationLabel(d));
 
-  const handleDownload = () => {
-    const chart = document.getElementById('chart-container');
-    html2canvas(chart).then(canvas => {
-      canvas.toBlob(blob => {
-        downloadjs(blob, 'idf_chart.png', 'image/png');
-      });
-    });
+        const returnPeriods = ['2', '5', '10', '25', '50', '100'];
+        const datasets = returnPeriods.map(rp => ({
+          label: `${rp} yr`,
+          data: idfData.map(d => {
+            const intensity = (d[rp] / d.duration) * 60;
+            return { x: allDurations.indexOf(d.duration), y: intensity }; // Map duration to its index
+          }),
+          borderColor: `hsl(${Math.random() * 360}, 70%, 50%)`,
+          tension: 0.2,
+          pointRadius: 4,
+          fill: false,
+        }));
+
+        setChartData({
+          labels: durationLabels,
+          datasets: datasets,
+        });
+        setTableData(idfData);
+
+      } catch (error) {
+        console.error('Error fetching data:', error);
+        setChartData({ datasets: [] });
+        setTableData([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, [stationId]);
+
+  const options = {
+    responsive: true,
+    maintainAspectRatio: false,
+    scales: {
+      x: {
+        type: 'category',
+        title: {
+          display: true,
+          text: 'Duration (minutes)',
+        },
+        ticks: {
+          maxRotation: 90,
+          minRotation: 90,
+        },
+      },
+      y: {
+        type: 'logarithmic',
+        title: {
+          display: true,
+          text: 'Rainfall Intensity (mm/hr)',
+        },
+        ticks: {
+          callback: function(value) {
+            if (value >= 1) return Number(value).toFixed(1);
+            return '';
+          },
+        },
+        min: 1,
+      },
+    },
+    plugins: {
+      legend: {
+        position: 'bottom',
+        labels: {
+          usePointStyle: true,
+        },
+      },
+      title: {
+        display: true,
+        text: `IDF Curves for ${locationName || 'Selected Station'}`,
+        font: {
+          size: 16
+        },
+      },
+      tooltip: {
+        callbacks: {
+          label: function(context) {
+            let label = context.dataset.label || '';
+            if (label) {
+              label += ': ';
+            }
+            if (context.parsed.y !== null) {
+              label += `${context.parsed.y.toFixed(2)} mm/hr`;
+            }
+            return label;
+          },
+          title: function(context) {
+            const index = context[0].parsed.x;
+            const duration = chartData.labels[index];
+            return duration;
+          },
+        },
+      },
+    },
   };
-
-  // X-axis ticks in minutes for log scale
-  const logTicks = [5, 10, 15, 30, 60, 120, 180, 240, 1440];
 
   return (
-    <div className="bg-yellow-50 rounded-xl p-4 mt-4">
-      <h3 className="font-semibold mb-2 flex items-center">
-        <input type="checkbox" checked readOnly className="mr-2" />
-        IDF Curves
-      </h3>
-
-      <div className="flex items-center justify-between">
-        <h4 className="font-bold mb-2 flex items-center">
-          <input type="checkbox" checked readOnly className="mr-2" />
-          IDF Curve (mm/hr)
-        </h4>
-        <button className="bg-blue-600 text-white px-3 py-1 rounded" onClick={handleDownload}>
-          📥 Download PNG
-        </button>
-      </div>
-
-      <div id="chart-container" className="bg-white rounded shadow p-4">
-        <ResponsiveContainer width="100%" height={300}>
-          <LineChart data={data}>
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis
-              dataKey="duration"
-              type="number"
-              scale="log"
-              domain={['dataMin', 'dataMax']}
-              ticks={logTicks}
-              tickFormatter={(val) => {
-                if (val < 60) return `${val} min`;
-                const hr = val / 60;
-                return `${hr} hr`;
-              }}
-              tick={{ fontSize: 12 }}
-              tickMargin={8}
-            />
-            <YAxis
-              label={{ value: 'mm/hr', angle: -90, position: 'insideLeft' }}
-              tick={{ fontSize: 12 }}
-            />
-            <Tooltip
-              formatter={(value) => value !== null ? `${value} mm/hr` : ''}
-              labelFormatter={(val) => {
-                if (val < 60) return `${val} min`;
-                const hr = val / 60;
-                return `${hr} hr`;
-              }}
-            />
-            <Legend />
-            {Object.keys(COLORS).map(rp => (
-              <Line
-                key={rp}
-                type="monotone"
-                dataKey={rp}
-                stroke={COLORS[rp]}
-                dot={{ r: 2 }}
-                name={labelMap[rp]}
-                connectNulls
-              />
-            ))}
-          </LineChart>
-        </ResponsiveContainer>
-      </div>
+    <div style={{ width: '100%', height: '500px' }}>
+      {loading ? (
+        <p>Loading chart data...</p>
+      ) : stationId && chartData.datasets.length > 0 ? (
+        <>
+          <Line data={chartData} options={options} />
+          <IdfTable data={tableData} />
+        </>
+      ) : (
+        <p>No IDF data available for this location. Please select another location.</p>
+      )}
     </div>
   );
-}
+};
+
+export default IdfChart;
