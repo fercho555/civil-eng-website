@@ -44,7 +44,7 @@ const MVP_IDFViewer_v2 = () => {
   const [error, setError] = useState(null);
   const [isStationInfoVisible, setIsStationInfoVisible] = useState(false);
   const [showChart, setShowChart] = useState(false);
-  const [selectedReturnPeriods, setSelectedReturnPeriods] = useState(['2', '5', '10']);
+  const [selectedReturnPeriods, setSelectedReturnPeriods] = useState(allReturnPeriods);
   const [place, setPlace] = useState(null);
   const [scriptLoaded, setScriptLoaded] = useState(false);
   const autocompleteRef = useRef(null);
@@ -298,6 +298,28 @@ const MVP_IDFViewer_v2 = () => {
       document.body.removeChild(link);
     }
   }, [station]);
+  const handleCSVDownload = useCallback(() => {
+  if (!chartDataRef.current) return;
+
+  const headers = ['Duration', ...allReturnPeriods.map(p => `${p}-Year`)];
+  const rows = chartDataRef.current.map(item => {
+    return [
+      formatDurationLabel(item.duration),
+      ...allReturnPeriods.map(p => item[p] ?? '')
+    ].join(',');
+  });
+
+  const csvContent = [headers.join(','), ...rows].join('\n');
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+
+  const link = document.createElement('a');
+  link.setAttribute('href', url);
+  link.setAttribute('download', `idf_data_${station.stationId}.csv`);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+}, [station]);
 
   const getLineColor = (period) => {
     const colors = {
@@ -456,14 +478,27 @@ const MVP_IDFViewer_v2 = () => {
           <div className="w-full md:w-2/3 space-y-6">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-xl font-bold text-gray-800">IDF Curves</h2>
-              <button
-                onClick={handleDownload}
-                className="inline-flex items-center px-3 py-1 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                disabled={!idfData.length}
-              >
-                <DownloadIcon className="mr-2 h-4 w-4" />
-                Download Data
-              </button>
+              <div className="flex gap-2">
+                {/* JSON Download button (your existing) */}
+                <button
+                  onClick={handleDownload}
+                  className="inline-flex items-center px-3 py-1 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  disabled={!idfData.length}
+                >
+                  <DownloadIcon className="mr-2 h-4 w-4" />
+                  Download JSON
+                </button>
+
+                {/* NEW: CSV Download button */}
+                <button
+                  onClick={handleCSVDownload}
+                  className="inline-flex items-center px-3 py-1 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  disabled={!idfData.length}
+                >
+                  <DownloadIcon className="mr-2 h-4 w-4" />
+                  Download CSV
+                </button>
+              </div>
             </div>
 
             <div className="flex flex-wrap gap-4 mb-4">
@@ -518,6 +553,31 @@ const MVP_IDFViewer_v2 = () => {
                 </LineChart>
               </ResponsiveContainer>
             </div>
+            <div className="bg-white rounded-lg shadow-md overflow-x-auto mt-6">
+              <table className="min-w-full text-sm text-left text-gray-700 border">
+                <thead className="bg-gray-100 text-xs uppercase text-gray-600">
+                  <tr>
+                    <th className="px-4 py-2 border">Duration</th>
+                    {allReturnPeriods.map(period => (
+                      <th key={period} className="px-4 py-2 border">{period}-Year</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {idfData.map((row, idx) => (
+                    <tr key={idx} className="hover:bg-gray-50">
+                      <td className="px-4 py-2 border">{formatDurationLabel(row.duration)}</td>
+                      {allReturnPeriods.map(period => (
+                        <td key={period} className="px-4 py-2 border">
+                          {row[period] != null ? row[period].toFixed(1) : '-'}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
           </div>
         )}
       </div>
