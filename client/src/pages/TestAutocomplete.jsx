@@ -8,7 +8,7 @@ const TestAutocomplete = () => {
     <div>
       <h2>Test Location Autocomplete</h2>
       <Autocomplete
-        apiKey="AIzaSyB00aH1ZJGW_PtQhKj6DtOZqh_veQuKAro"
+        
         onPlaceSelected={(place) => {
           setSelectedPlace(place);
           console.log(place);
