@@ -1,15 +1,35 @@
-// File: src/pages/AdminDashboard.jsx
 import React, { useEffect, useState } from 'react';
+import { safeFetchJSON } from '../utils/safeFetchJSON'; // if you use the safeFetch wrapper
 
 function AdminDashboard() {
   const [submissions, setSubmissions] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
-    fetch('http://localhost:5000/api/contact')
-      .then(res => res.json())
-      .then(data => setSubmissions(data))
-      .catch(err => console.error(err));
+    async function fetchSubmissions() {
+      try {
+        setLoading(true);
+        setError(null);
+        // Use safeFetchJSON or native fetch below:
+        const data = await safeFetchJSON('http://localhost:5000/api/contact');
+        // If not using safeFetchJSON:
+        // const response = await fetch('http://localhost:5000/api/contact');
+        // if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+        // const data = await response.json();
+        setSubmissions(data);
+      } catch (err) {
+        setError(err.message || 'Failed to fetch submissions');
+        setSubmissions([]);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchSubmissions();
   }, []);
+
+  if (loading) return <div>Loading submissions...</div>;
+  if (error) return <div className="text-red-600">Error: {error}</div>;
 
   const downloadCSV = () => {
     const headers = ['Name', 'Email', 'Message', 'Date'];

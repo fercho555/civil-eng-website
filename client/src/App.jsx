@@ -11,6 +11,11 @@ import AdminDashboard from './pages/AdminDashboard.jsx';
 import ProjectWizard from './pages/ProjectWizard';
 import MVP_IDFViewer_v2 from './pages/MVP_IDFViewer_v2.jsx';
 import TestAutocomplete from './pages/TestAutocomplete.jsx';
+import { PrivateRoute } from './components/PrivateRoute';
+import LoginPage from './pages/LoginPage.jsx';
+import ContactForm from './components/ContactForm';
+import { AdminRoute } from './components/AdminRoute';
+import PricingPage from './components/PricingPage';
 
 function App() {
   return (
@@ -21,11 +26,23 @@ function App() {
           <Route path="/" element={<Home />} />
           <Route path="/about" element={<About />} />
           <Route path="/services" element={<Services />} />
-          <Route path="/contact" element={<Contact />} />
+          <Route path="/contact" element={<ContactForm />} />
           <Route path="/admin" element={<AdminDashboard />} />
-          <Route path="/start" element={<MVP_IDFViewer_v2 />} /> {/* Change this line */}
+          
+          <Route path="/start" element={
+            <PrivateRoute>
+              <MVP_IDFViewer_v2 />
+            </PrivateRoute>
+          } />
+          <Route path="/admin" element={
+          <AdminRoute>
+            <AdminDashboard />
+          </AdminRoute>
+          } />
           <Route path="/idf-viewer" element={<MVP_IDFViewer_v2 />} />
           <Route path="/test-autocomplete" element={<TestAutocomplete />} />
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/pricing" element={<PricingPage />} />
         </Routes>
       </main>
       <Footer />

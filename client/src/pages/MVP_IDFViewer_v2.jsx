@@ -1,12 +1,10 @@
 /* global __google_maps_api_key */
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { useAuth } from '../context/AuthContext';
+import { Link } from 'react-router-dom';
 
-// To make the app functional, please replace 'YOUR_API_KEY' with your actual Google Maps API key.
-// Example: const GOOGLE_MAPS_API_KEY = 'AIzaSyB-C1...';
 const GOOGLE_MAPS_API_KEY = process.env.REACT_APP_GOOGLE_PLACES_API_KEY || '';
-
-// const GOOGLE_MAPS_API_KEY = typeof __google_maps_api_key !== 'undefined' ? __google_maps_api_key : 'AIzaSyD4ngcsdvF7gXdLiYb8UPpSWEhixiIpe4g';
 const API_BASE_URL = 'http://127.0.0.1:5000/api';
 
 const DownloadIcon = (props) => (
@@ -38,6 +36,9 @@ const SearchIcon = (props) => (
 const allReturnPeriods = ['2', '5', '10', '25', '50', '100'];
 
 const MVP_IDFViewer_v2 = () => {
+  console.log('MVP_IDFViewer_v2 component rendered');
+  const { user, token } = useAuth();
+  console.log('Current user at mount:', user, typeof user);
   const [station, setStation] = useState(null);
   const [idfData, setIDFData] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -50,13 +51,11 @@ const MVP_IDFViewer_v2 = () => {
   const autocompleteRef = useRef(null);
   const autocompleteInputRef = useRef(null);
   const chartDataRef = useRef(null);
-
-  // This useEffect ensures the Google Maps script is loaded only once and correctly.
+  
   useEffect(() => {
     let isMounted = true;
     const GOOGLE_MAPS_SCRIPT_ID = 'google-maps-script';
 
-    // Check if the script tag already exists in the document's head to prevent duplicate loads.
     const existingScript = document.getElementById(GOOGLE_MAPS_SCRIPT_ID);
     if (existingScript) {
       console.log("Google Maps script tag already exists. Assuming script is loading or loaded.");
@@ -66,7 +65,6 @@ const MVP_IDFViewer_v2 = () => {
       return;
     }
 
-    // Check if the script is already loaded via the window object, even if the tag is not present.
     if (window.google?.maps?.places) {
       console.log("Google Maps script already loaded via window object. Setting scriptLoaded to true.");
       if (isMounted) {
@@ -75,7 +73,6 @@ const MVP_IDFViewer_v2 = () => {
       return;
     }
 
-    // If not loaded, create and append the script element.
     const script = document.createElement('script');
     script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}&libraries=places&loading=async`;
     script.async = true;
@@ -99,18 +96,14 @@ const MVP_IDFViewer_v2 = () => {
 
     return () => {
       isMounted = false;
-      // No need to remove the script tag, as other components might need it.
     };
   }, []);
 
-  // This useEffect initializes Autocomplete only after the script has successfully loaded.
   useEffect(() => {
     if (scriptLoaded && autocompleteInputRef.current) {
-      // Use a short delay to ensure the places library is fully available
       const initAutocomplete = () => {
         if (window.google?.maps?.places) {
           console.log("Initializing Autocomplete.");
-          // Create and store the autocomplete instance in a ref
           autocompleteRef.current = new window.google.maps.places.Autocomplete(
             autocompleteInputRef.current,
             {
@@ -118,22 +111,19 @@ const MVP_IDFViewer_v2 = () => {
               componentRestrictions: { country: 'ca' }
             }
           );
-    
-          // Attach the listener and update the state when a place is selected
+  
           autocompleteRef.current.addListener('place_changed', () => {
             const selectedPlace = autocompleteRef.current.getPlace();
             console.log("Place selected:", selectedPlace);
             setPlace(selectedPlace);
           });
         } else {
-          // If the library is not yet ready, try again after a short delay
           setTimeout(initAutocomplete, 100);
         }
       };
       
       initAutocomplete();
 
-      // Cleanup function to remove the listener and instance on component unmount
       return () => {
         if (autocompleteRef.current) {
           window.google.maps.event.clearInstanceListeners(autocompleteRef.current);
@@ -187,8 +177,14 @@ const MVP_IDFViewer_v2 = () => {
       setStation(nearestStation);
       setIsStationInfoVisible(true);
       console.log('Found nearest station:', nearestStation);
-
-      const idfResponse = await fetch(`${API_BASE_URL}/idf/curves?stationId=${nearestStation.stationId}`);
+      
+      // Modified fetch call that includes Authorization header with token:
+      const idfResponse = await fetch(`${API_BASE_URL}/idf/curves?stationId=${nearestStation.stationId}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,  // Attach JWT token for authenticated request
+          'Content-Type': 'application/json'
+        }
+      });
       if (!idfResponse.ok) {
         const errorData = await idfResponse.json();
         throw new Error(errorData.error || 'Failed to fetch IDF data.');
@@ -200,12 +196,10 @@ const MVP_IDFViewer_v2 = () => {
         console.log(`Processing item ${index}:`, item);
         let durationInMinutes = 0;
         
-        // First, check if the duration is a number.
         if (typeof item.duration === 'number') {
           console.log(`- Duration is a number: ${item.duration}`);
           durationInMinutes = item.duration;
         } else {
-          // If not a number, fall back to the string parsing logic.
           const durationString = String(item.duration);
           console.log(`- Duration is a string: "${durationString}". Attempting to parse.`);
           if (durationString.includes('min')) {
@@ -219,7 +213,6 @@ const MVP_IDFViewer_v2 = () => {
         
         console.log(`- Converted to minutes: ${durationInMinutes}`);
 
-        // Skip data points with non-positive duration, as they will break the log scale
         if (durationInMinutes <= 0) {
           console.log(`- Skipping item ${index} due to non-positive duration.`);
           return null;
@@ -245,7 +238,7 @@ const MVP_IDFViewer_v2 = () => {
 
         console.log(`- Successfully processed item ${index}:`, newItem);
         return newItem;
-      }).filter(Boolean); // Filter out any null items
+      }).filter(Boolean);
 
       const sortedData = processedData.sort((a, b) => a.duration - b.duration);
 
@@ -266,7 +259,7 @@ const MVP_IDFViewer_v2 = () => {
     } finally {
       setLoading(false);
     }
-  }, [place]);
+  }, [place, token]);
 
   const handleCheckboxChange = useCallback((event) => {
     const { value, checked } = event.target;
@@ -281,7 +274,6 @@ const MVP_IDFViewer_v2 = () => {
       } else {
         newPeriods = prev.filter((p) => p !== value);
       }
-      // Sort the array numerically to ensure the legend order is correct
       return newPeriods.sort((a, b) => parseInt(a) - parseInt(b));
     });
   }, []);
@@ -298,29 +290,30 @@ const MVP_IDFViewer_v2 = () => {
       document.body.removeChild(link);
     }
   }, [station]);
+
   const handleCSVDownload = useCallback(() => {
-  if (!chartDataRef.current) return;
+    if (!chartDataRef.current) return;
 
-  const headers = ['Duration', ...allReturnPeriods.map(p => `${p}-Year`)];
-  const rows = chartDataRef.current.map(item => {
-    return [
-      formatDurationLabel(item.duration),
-      ...allReturnPeriods.map(p => item[p] ?? '')
-    ].join(',');
-  });
+    const headers = ['Duration', ...allReturnPeriods.map(p => `${p}-Year`)];
+    const rows = chartDataRef.current.map(item => {
+      return [
+        formatDurationLabel(item.duration),
+        ...allReturnPeriods.map(p => item[p] ?? '')
+      ].join(',');
+    });
 
-  const csvContent = [headers.join(','), ...rows].join('\n');
-  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
+    const csvContent = [headers.join(','), ...rows].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
 
-  const link = document.createElement('a');
-  link.setAttribute('href', url);
-  link.setAttribute('download', `idf_data_${station.stationId}.csv`);
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-}, [station]);
-
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `idf_data_${station.stationId}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }, [station]);
+ 
   const getLineColor = (period) => {
     const colors = {
       '2': '#03a9f4',
@@ -375,13 +368,24 @@ const MVP_IDFViewer_v2 = () => {
     const lowerLimit = 1;
     return [lowerLimit, upperLimit];
   }, [idfData]);
-
-
+   if (!user) {
+    return (
+      <div className="max-w-3xl mx-auto p-6 mt-10 border border-yellow-400 bg-yellow-100 rounded text-center text-yellow-900">
+        <p className="mb-4 text-lg font-semibold">
+          Please{' '}
+          <Link to="/login" className="text-blue-700 underline">
+            log in
+          </Link>{' '}
+          to access IDF curves and tables.
+        </p>
+      </div>
+    );
+    }
   if (!scriptLoaded) {
     return (
       <div className="bg-gray-50 min-h-screen flex items-center justify-center">
         <div className="flex items-center text-blue-600">
-          <svg className="animate-spin -ml-1 mr-3 h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+          <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
           </svg>
@@ -390,11 +394,12 @@ const MVP_IDFViewer_v2 = () => {
       </div>
     );
   }
-
+  if (false) { // Change to false to disable after testing
+  return <div>Testing MVP_IDFViewer_v2 rendering</div>;
+}
   return (
     <div className="bg-gray-50 min-h-screen flex flex-col items-center justify-center p-4 sm:p-6 lg:p-8 font-sans">
       <div className="w-full max-w-5xl bg-white p-6 sm:p-8 lg:p-10 rounded-2xl shadow-xl flex flex-col md:flex-row gap-6">
-
         {/* Left Side: Search and Controls */}
         <div className="w-full md:w-1/3 space-y-6">
           <div className="flex justify-between items-center mb-4">
@@ -405,7 +410,6 @@ const MVP_IDFViewer_v2 = () => {
           <p className="text-gray-600">
             Enter a location to find the nearest weather station and its Intensity-Duration-Frequency (IDF) curves.
           </p>
-          
 
           <form onSubmit={handleSearch} className="space-y-4">
             <div>
@@ -454,21 +458,11 @@ const MVP_IDFViewer_v2 = () => {
                   <CloseIcon className="h-4 w-4 text-gray-500 hover:text-gray-700" />
                 </button>
               </div>
-              <p className="text-gray-600">
-                <strong className="text-gray-800">ID:</strong> {station.stationId}
-              </p>
-              <p className="text-gray-600">
-                <strong className="text-gray-800">Name:</strong> {station.stationName || station.name || ''}
-              </p>
-              <p className="text-gray-600">
-                <strong className="text-gray-800">Latitude:</strong> {station.lat}
-              </p>
-              <p className="text-gray-600">
-                <strong className="text-gray-800">Longitude:</strong> {station.lon}
-              </p>
-                <p className="text-gray-600">
-                <strong className="text-gray-800">Distance:</strong> {station.distance_km} km
-              </p>
+              <p className="text-gray-600"><strong className="text-gray-800">ID:</strong> {station.stationId}</p>
+              <p className="text-gray-600"><strong className="text-gray-800">Name:</strong> {station.stationName || station.name || ''}</p>
+              <p className="text-gray-600"><strong className="text-gray-800">Latitude:</strong> {station.lat}</p>
+              <p className="text-gray-600"><strong className="text-gray-800">Longitude:</strong> {station.lon}</p>
+              <p className="text-gray-600"><strong className="text-gray-800">Distance:</strong> {station.distance_km} km</p>
             </div>
           )}
         </div>
@@ -479,7 +473,6 @@ const MVP_IDFViewer_v2 = () => {
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-xl font-bold text-gray-800">IDF Curves</h2>
               <div className="flex gap-2">
-                {/* JSON Download button (your existing) */}
                 <button
                   onClick={handleDownload}
                   className="inline-flex items-center px-3 py-1 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
@@ -489,7 +482,6 @@ const MVP_IDFViewer_v2 = () => {
                   Download JSON
                 </button>
 
-                {/* NEW: CSV Download button */}
                 <button
                   onClick={handleCSVDownload}
                   className="inline-flex items-center px-3 py-1 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
@@ -577,7 +569,6 @@ const MVP_IDFViewer_v2 = () => {
                 </tbody>
               </table>
             </div>
-
           </div>
         )}
       </div>
@@ -586,4 +577,3 @@ const MVP_IDFViewer_v2 = () => {
 };
 
 export default MVP_IDFViewer_v2;
-

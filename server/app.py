@@ -4,12 +4,56 @@ import os
 import math
 from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
+from pymongo import MongoClient
+from dotenv import load_dotenv
+from pathlib import Path
+import logging
+from datetime import datetime, timezone, timedelta, UTC
+from werkzeug.security import check_password_hash
+import jwt
+from free_access import require_trial_access
+from flask import g, request
+from bson import ObjectId
 
 app = Flask(__name__, static_folder='../build', static_url_path='/')
-CORS(app) # Enable CORS for all routes
-
+CORS(app, resources={r"/api/*": {"origins": "http://localhost:3000"}}, supports_credentials=True)
+#logging.basicConfig(level=logging.DEBUG)
+# Construct absolute path to your client/.env file
+env_path = Path(__file__).parent.parent / 'client' / '.env'
+load_dotenv(dotenv_path=env_path)
+SECRET_KEY = os.getenv("JWT_SECRET_KEY", "your_secret_here")  # Use a secure key and keep it secret
+def create_jwt(user):
+    payload = {
+        "sub": str(user["_id"]),   # User ID
+        "username": user["username"],
+        "role": user.get("role", "user"),
+        "iat": datetime.now(UTC),
+        "exp": datetime.now(UTC) + timedelta(hours=1)  # Token expires in 1 hour
+    }
+    token = jwt.encode(payload, SECRET_KEY, algorithm="HS256")
+    return token
+# Now you can access variables
+def verify_password(plain_password, hashed_password):
+    return check_password_hash(hashed_password, plain_password)
+@app.errorhandler(Exception)
+def handle_exception(e):
+    logging.error("An error occurred", exc_info=e)
+    return {"error": str(e)}, 500
 DATA_DIR = os.path.join(os.path.dirname(__file__), 'data')
-
+mongo_uri = os.getenv("MONGO_URI")
+client = MongoClient(mongo_uri)
+db = client['contactDB'] #same name here as in your URI
+users_collection = db['users']  # for explicitness
+contacts_collection = db['contacts']
+# JWT decode helper
+def decode_token(token):
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
+        return payload.get("sub")  # user ID from token
+    except jwt.ExpiredSignatureError:
+        return None
+    except jwt.InvalidTokenError:
+        return None
 # Global data structures to be populated
 IDF_DATA = {}
 STATIONS_DATA_BY_PROVINCE = {}
@@ -127,7 +171,34 @@ def haversine(lat1, lon1, lat2, lon2):
     a = math.sin(delta_phi / 2)**2 + math.cos(phi1) * math.cos(phi2) * math.sin(delta_lambda / 2)**2
     c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
     return R * c
-    
+@app.before_request
+def load_user():
+    auth_header = request.headers.get("Authorization", "")
+    token = auth_header.replace("Bearer ", "") if auth_header else None
+    if not token:
+        g.user = None
+        return
+    user_id = decode_token(token)
+    if not user_id:
+        g.user = None
+        return
+    try:
+        g.user = users_collection.find_one({'_id': ObjectId(user_id)})
+    except Exception as e:
+        print(f"Error loading user: {e}")
+        g.user = None  
+@app.before_request
+def make_user_datetimes_aware():
+    user = getattr(g, 'user', None)
+    if user is None:
+        return
+
+    trial_start = user.get('trial_start')
+    if trial_start and trial_start.tzinfo is None:
+        user['trial_start'] = trial_start.replace(tzinfo=timezone.utc)
+
+    # Add similar conversions here for other datetime fields of user if needed
+
 @app.route('/api/stations', methods=['GET'])
 def get_stations():
     return jsonify(STATIONS_DATA)
@@ -186,6 +257,7 @@ def nearest_station():
     return jsonify({"error": "No nearby station with IDF data found."}), 404
 
 @app.route('/api/idf/curves', methods=['GET'])
+@require_trial_access
 def idf_curves():
     try:
         stationId = request.args.get('stationId')
@@ -231,6 +303,55 @@ def idf_curves():
 @app.route('/')
 def index():
     return app.send_static_file('index.html')
-
+@app.route('/api/contact', methods=['GET', 'POST'])
+def get_contact_submissions():
+    if request.method == 'GET':
+        # Retrieve all documents in contacts collection, excluding MongoDB _id field for JSON serialization
+        submissions = list(contacts_collection.find({}, {'_id': 0}))
+        return jsonify(submissions)
+    
+    if request.method == 'POST':
+        app.logger.info("POST /api/contact started")
+        data = request.get_json()
+        app.logger.info(f"Data received: {data}")
+        if not data:
+            return jsonify({"error": "Invalid JSON data"}), 400
+        
+        # Basic validation
+        name = data.get('name')
+        email = data.get('email')
+        message = data.get('message')
+        if not name or not email or not message:
+            return jsonify({"error": "Missing fields in submission"}), 400
+        
+        # Prepare the document to insert
+        contact_doc = {
+            "name": name,
+            "email": email,
+            "message": message,
+            "date": datetime.now(timezone.utc)  # Add this field
+        }
+        
+        # Insert the document into MongoDB contacts collection
+        contacts_collection.insert_one(contact_doc)
+        
+        return jsonify({"status": "success", "message": "Submission received"}), 201
+@app.route('/api/login', methods=['POST'])
+def login():
+    data = request.get_json()
+    username = data.get('username')
+    password = data.get('password')
+    
+    user = db.users.find_one({'username': username})
+    if user and verify_password(password, user['password_hash']):
+        token = create_jwt(user)
+        return jsonify({
+            'token': token,
+            'user': {
+                'username': user['username'],
+                'role': user.get('role', 'user')
+            }
+        })
+    return jsonify({'error': 'Invalid credentials'}), 401    
 if __name__ == '__main__':
-    app.run(debug=True, port=5000)
+    app.run(debug=True, threaded=True,port=5000)

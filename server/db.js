@@ -9,8 +9,8 @@ if (!uri) {
 }
 
 const client = new MongoClient(uri, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true
+  //useNewUrlParser: true,
+  //useUnifiedTopology: true
 });
 
 let dbInstance = null;
