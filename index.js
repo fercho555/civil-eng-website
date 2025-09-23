@@ -12,6 +12,24 @@ const reportRoute = require('./routes/report');
 const idfRoute = require('./routes/idf');
 
 const app = express();
+// CORS configuration to allow requests from deployed frontend URL
+const allowedOrigins = [
+  'https://civil-eng-website-g7q2-jv4mhl0r5-fercho555s-projects.vercel.app',
+  'http://localhost:3000' // for local development if needed
+];
+
+app.use(cors({
+  origin: function(origin, callback){
+    // allow requests with no origin (like mobile apps or curl)
+    if(!origin) return callback(null, true);
+    if(allowedOrigins.indexOf(origin) === -1){
+      const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
+      return callback(new Error(msg), false);
+    }
+    return callback(null, true);
+  },
+  credentials: true,
+}));
 app.use(cors());
 app.use(express.json());
 
