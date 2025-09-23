@@ -1,8 +1,11 @@
 from pymongo import MongoClient
 from werkzeug.security import generate_password_hash
 from datetime import datetime
+from dotenv import load_dotenv
 
-client = MongoClient("mongodb+srv://acon560:OGjbU0kpdtReM5yV@mycluster.pjs6cag.mongodb.net/contactDB?retryWrites=true&w=majority&appName=Mycluster")
+load_dotenv()  # Load environment variables from a .env file
+
+client = MongoClient(os.environ['MONGO_URI'])
 db = client.contactDB
 
 password_plain = "quietStorm"
