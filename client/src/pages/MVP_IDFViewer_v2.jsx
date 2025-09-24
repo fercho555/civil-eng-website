@@ -168,7 +168,9 @@ const MVP_IDFViewer_v2 = () => {
     }
 
     try {
-      const response = await fetch(`${API_BASE_URL}/nearest-station?lat=${lat}&lon=${lon}&province=${provinceCode}`);
+      const response = await fetch(`${API_BASE_URL}/nearest-station?lat=${lat}&lon=${lon}&province=${provinceCode}`, {
+      credentials: 'include'
+      });
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.error || 'Failed to find nearest station.');
@@ -179,9 +181,10 @@ const MVP_IDFViewer_v2 = () => {
       console.log('Found nearest station:', nearestStation);
       
       // Modified fetch call that includes Authorization header with token:
-      const idfResponse = await fetch(`${API_BASE_URL}/idf/curves?stationId=${nearestStation.stationId}`, {
+     const idfResponse = await fetch(`${API_BASE_URL}/idf/curves?stationId=${nearestStation.stationId}`, {
+        credentials: 'include',
         headers: {
-          Authorization: `Bearer ${token}`,  // Attach JWT token for authenticated request
+          Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json'
         }
       });
