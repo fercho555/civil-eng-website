@@ -41,9 +41,27 @@ app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
 app.use('/api/idf', freeAccessMiddleware);
 app.use('/api/auth', authRoute);
 // --- CORS ---
-const allowedOrigin = process.env.FRONTEND_ORIGIN || '*';
-app.use(cors({ origin: allowedOrigin, credentials: true }));
-
+// --- Add near the top, after requiring cors ---
+const allowedOrigins = [
+  'http://localhost:3000',               // React dev server URL
+  'https://civil-eng-website.vercel.app'  // Replace with your deployed frontend URL
+];
+app.use(cors({
+  origin: function (origin, callback) {
+    // Allow requests with no origin (curl, Postman, non-browser clients)
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.indexOf(origin) === -1) {
+      const msg = `CORS error: origin ${origin} is not allowed by CORS`;
+      return callback(new Error(msg), false);
+    }
+    return callback(null, true);
+  },
+  credentials: true,
+}));
+app.options('*', cors({
+  origin: allowedOrigins,
+  credentials: true,
+}));
 // --- Routes ---
 const contactRoute = require('../routes/contact');
 const reportRoute = require('../routes/report');
