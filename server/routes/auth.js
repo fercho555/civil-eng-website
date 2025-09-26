@@ -53,19 +53,35 @@ router.post('/login', async (req, res) => {
     if (!user) {
       return res.status(401).json({ error: "Invalid username or password" });
     }
+    if (!user.password_hash) {
+      // Defensive check in case password hash is missing
+      return res.status(401).json({ error: "Invalid username or password." });
+    }
 
+    let isMatch;
+    try {
+      isMatch = await bcrypt.compare(password, user.password_hash);
+    } catch (err) {
+      console.error('bcrypt compare error:', err);
+      return res.status(500).json({ error: "Internal server error." });
+    }
+
+    if (!isMatch) {
+      return res.status(401).json({ error: "Invalid username or password." });
+    }
     const valid = await bcrypt.compare(password, user.password_hash);
     if (!valid) {
       return res.status(401).json({ error: "Invalid username or password" });
     }
 
+    // Generate JWT token
     const token = jwt.sign(
-      { userId: user._id.toString() },
+      { userId: user._id.toString(), username: user.username, role: user.role },
       secret,
       { expiresIn: '1h' }
     );
 
-    return res.json({ token });
+    return res.json({ token, userId: user._id, username: user.username, role: user.role });
   } catch (err) {
     console.error('Error in /api/auth/login:', err);
     return res.status(500).json({ error: "Internal server error" });
