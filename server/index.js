@@ -44,7 +44,8 @@ app.use('/api/auth', authRoute);
 // --- Add near the top, after requiring cors ---
 const allowedOrigins = [
   'http://localhost:3000',               // React dev server URL
-  'https://civil-eng-website.vercel.app'  // Replace with your deployed frontend URL
+  'https://civil-eng-website.vercel.app',  // Replace with your deployed frontend URL
+  'https://civil-eng-website-g7q2.vercel.app'  // Preview or branch deployment URL
 ];
 app.use(cors({
   origin: function (origin, callback) {
