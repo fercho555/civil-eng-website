@@ -32,6 +32,39 @@ const fs = require('fs');
 console.log('Does middleware file exist?', fs.existsSync(path.join(__dirname, 'middlewares', 'freeAccessMiddleware.js')));
 const freeAccessMiddleware = require(path.join(__dirname, 'middlewares', 'freeAccessMiddleware.js'));
 
+// --- CORS ---
+// --- Add near the top, after requiring cors ---
+const allowedOrigins = [
+  'http://localhost:3000',               // React dev server URL
+  'https://civil-eng-website.vercel.app',  // Replace with your deployed frontend URL
+  'https://civil-eng-website-g7q2.vercel.app'  // Preview or branch deployment URL
+];
+
+const corsOptions = {
+  origin: function (origin, callback) {
+    if (!origin) return callback(null, true);  // allow curl/postman or no origin
+    if (allowedOrigins.indexOf(origin) === -1) {
+      const msg = `The CORS policy for this site does not allow access from the specified Origin: ${origin}`;
+      return callback(new Error(msg), false);
+    }
+    return callback(null, true);
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+};
+
+app.use(cors(corsOptions));
+
+// Explicitly handle OPTIONS preflight requests for all routes
+app.options('*', (req, res) => {
+  res.header('Access-Control-Allow-Origin', req.headers.origin || '*');
+  res.header('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.header('Access-Control-Allow-Credentials', 'true');
+  res.sendStatus(200);
+});
+
 // --- Basics & Security ---
 app.set('trust proxy', 1);
 app.use(helmet());
@@ -40,13 +73,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
 app.use('/api/idf', freeAccessMiddleware);
 app.use('/api/auth', authRoute);
-// --- CORS ---
-// --- Add near the top, after requiring cors ---
-const allowedOrigins = [
-  'http://localhost:3000',               // React dev server URL
-  'https://civil-eng-website.vercel.app',  // Replace with your deployed frontend URL
-  'https://civil-eng-website-g7q2.vercel.app'  // Preview or branch deployment URL
-];
+
 app.use(cors({
   origin: function (origin, callback) {
     // Allow requests with no origin (curl, Postman, non-browser clients)
