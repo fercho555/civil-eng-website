@@ -16,7 +16,7 @@ const idfRoute = require('./routes/idf');
 const app = express();
 // Add logging middleware right after creating the app 
 app.use((req, res, next) => {
-  console.log('Request:', req.method, req.headers.origin);
+  console.log('Request:', req.method, req.url, 'Origin:',req.headers.origin);
   next();
 });
 // CORS configuration to allow requests from deployed frontend URL
@@ -29,17 +29,22 @@ const allowedOrigins = [
 
 const corsOptions = {
   origin: function (origin, callback) {
-    // allow requests with no origin (like mobile apps or curl)
-    if (!origin) return callback(null, true);
-    if (allowedOrigins.indexOf(origin) === -1) {
-      const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
-      return callback(new Error(msg), false);
+    if (!origin) return callback(null, true); // Allow requests with no origin (curl, postman)
+    const allowedOrigins = [
+      'https://civil-eng-website.vercel.app',
+      'https://civil-eng-website-g7q2-93x1o7qrr-fercho555s-projects.vercel.app',
+      'https://civil-eng-website-g7q2-git-main-fercho555s-projects.vercel.app',
+      'http://localhost:3000' // for local development if needed
+    ];
+    if (allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
     }
-    return callback(null, true);
   },
-  credentials: true, // enable cookies and auth headers
+  credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  allowedHeaders: ['Content-Type', 'Authorization'],
 };
 
 // 1. Use CORS middleware with options before routes and before body parsing
@@ -48,7 +53,7 @@ app.use(cors(corsOptions));
 // 2. Parse JSON
 app.use(express.json());
 // 3. Handle OPTIONS preflight requests for all routes
-app.options('*', cors(corsOptions));
+app.options('/*splat', cors(corsOptions)); //Explicitly handle OPTIONS
 // 4. Mount your API routes
 app.use('/auth', authRoute);
 
