@@ -66,13 +66,7 @@ router.post('/login', async (req, res) => {
       return res.status(500).json({ error: "Internal server error." });
     }
 
-    if (!isMatch) {
-      return res.status(401).json({ error: "Invalid username or password." });
-    }
-    const valid = await bcrypt.compare(password, user.password_hash);
-    if (!valid) {
-      return res.status(401).json({ error: "Invalid username or password" });
-    }
+    
 
     // Generate JWT token
     const token = jwt.sign(
