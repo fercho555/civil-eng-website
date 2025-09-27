@@ -42,6 +42,7 @@ router.post('/register', async (req, res) => {
 // User login route to get JWT token
 router.post('/login', async (req, res) => {
   try {
+    console.log('Login route hit, req.body:', req.body);
     const { username, password } = req.body;
     const db = req.app.locals.db;
 
