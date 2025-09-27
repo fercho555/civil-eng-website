@@ -23,24 +23,17 @@ app.use((req, res, next) => {
 const allowedOrigins = [
   'https://civil-eng-website.vercel.app',
   'https://civil-eng-website-g7q2.vercel.app',
+  'https://civil-eng-website-g7q2-93x1o7qrr-fercho555s-projects.vercel.app',
   'https://civil-eng-website-g7q2-git-main-fercho555s-projects.vercel.app',
   'http://localhost:3000' // for local development if needed
 ];
 
+// CORS configuration
 const corsOptions = {
-  origin: function (origin, callback) {
-    if (!origin) return callback(null, true); // Allow requests with no origin (curl, postman)
-    const allowedOrigins = [
-      'https://civil-eng-website.vercel.app',
-      'https://civil-eng-website-g7q2-93x1o7qrr-fercho555s-projects.vercel.app',
-      'https://civil-eng-website-g7q2-git-main-fercho555s-projects.vercel.app',
-      'http://localhost:3000' // for local development if needed
-    ];
-    if (allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
-    }
+  origin: (origin, callback) => {
+    if (!origin) return callback(null, true); // allow curl/postman without origin
+    if (allowedOrigins.includes(origin)) callback(null, true);
+    else callback(new Error('Not allowed by CORS'));
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],

@@ -29,7 +29,7 @@ router.post('/register', async (req, res) => {
       username,
       password_hash: hashedPassword,
       role,
-      freeAccessStart: null // Optional: track free access start here
+      //freeAccessStart: null // Optional: track free access start here
     });
 
     return res.status(201).json({ message: "User registered successfully", userId: result.insertedId });
@@ -59,14 +59,17 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({ error: "Invalid username or password." });
     }
 
-    let isMatch;
-    try {
-      isMatch = await bcrypt.compare(password, user.password_hash);
-    } catch (err) {
-      console.error('bcrypt compare error:', err);
-      return res.status(500).json({ error: "Internal server error." });
+    // let isMatch;
+    // try {
+    //   isMatch = await bcrypt.compare(password, user.password_hash);
+    // } catch (err) {
+    //   console.error('bcrypt compare error:', err);
+    //   return res.status(500).json({ error: "Internal server error." });
+    // }
+    const isMatch = await bcrypt.compare(password, user.password_hash);
+    if (!isMatch) {
+      return res.status(401).json({ error: "Invalid credentials" });
     }
-
     
 
     // Generate JWT token
@@ -76,9 +79,10 @@ router.post('/login', async (req, res) => {
       { expiresIn: '1h' }
     );
 
-    return res.json({ token, userId: user._id, username: user.username, role: user.role });
+    res.json({ token, userId: user._id, username: user.username, role: user.role });
   } catch (err) {
-    console.error('Error in /api/auth/login:', err);
+    //console.error('Error in /api/auth/login:', err);
+    console.error('Error in /auth/login:', err);
     return res.status(500).json({ error: "Internal server error" });
   }
 });
