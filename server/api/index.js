@@ -14,7 +14,11 @@ const reportRoute = require('./routes/report');
 const idfRoute = require('./routes/idf');
 
 const app = express();
-
+// Add logging middleware right after creating the app 
+app.use((req, res, next) => {
+  console.log('Request:', req.method, req.headers.origin);
+  next();
+});
 // CORS configuration to allow requests from deployed frontend URL
 const allowedOrigins = [
   'https://civil-eng-website.vercel.app',
@@ -38,13 +42,15 @@ const corsOptions = {
   allowedHeaders: ['Content-Type', 'Authorization']
 };
 
-// Use CORS middleware with options
+// 1. Use CORS middleware with options before routes and before body parsing
 app.use(cors(corsOptions));
-app.use('/auth', authRoute);
-// Handle OPTIONS preflight requests for all routes
-app.options('*', cors(corsOptions));
 
+// 2. Parse JSON
 app.use(express.json());
+// 3. Handle OPTIONS preflight requests for all routes
+app.options('*', cors(corsOptions));
+// 4. Mount your API routes
+app.use('/auth', authRoute);
 
 // === 1. MongoDB Setup ===
 const uri = process.env.MONGO_URI;
