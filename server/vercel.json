@@ -15,7 +15,9 @@
         { "key": "Access-Control-Allow-Origin", "value": "https://civil-eng-website.vercel.app" },
         { "key": "Access-Control-Allow-Methods", "value": "GET, POST, OPTIONS, PUT, DELETE" },
         { "key": "Access-Control-Allow-Headers", "value": "Content-Type, Authorization" },
-        { "key": "Access-Control-Allow-Credentials", "value": "true" }
+        { "key": "Access-Control-Allow-Credentials", "value": "true" },
+        { "key": "Access-Control-Allow-Origin", "value": "https://civil-eng-website-g7q2-git-main-fercho555s-projects.vercel.app" }
+
       ]
     }
   ]

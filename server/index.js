@@ -37,7 +37,9 @@ const freeAccessMiddleware = require(path.join(__dirname, 'middlewares', 'freeAc
 const allowedOrigins = [
   'http://localhost:3000',               // React dev server URL
   'https://civil-eng-website.vercel.app',  // Replace with your deployed frontend URL
-  'https://civil-eng-website-g7q2.vercel.app'  // Preview or branch deployment URL
+  'https://civil-eng-website-g7q2.vercel.app',  // Preview or branch deployment URL
+  'https://civil-eng-website-g7q2-git-main-fercho555s-projects.vercel.app',
+  'https://civil-eng-website-g7q2-evz2hodk9-fercho555s-projects.vercel.app'
 ];
 
 const corsOptions = {
