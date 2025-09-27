@@ -1,9 +1,11 @@
 require('dotenv').config();
 
 const express = require('express');
+const serverless = require('serverless-http');
 const cors = require('cors');
 const { MongoClient } = require('mongodb');
 const path = require('path');
+const authRoute = require('../routes/auth');
 
 const contactRoute = require('./routes/contact');
 const enrichRoute = require('./routes/enrich');
@@ -16,6 +18,8 @@ const app = express();
 // CORS configuration to allow requests from deployed frontend URL
 const allowedOrigins = [
   'https://civil-eng-website.vercel.app',
+  'https://civil-eng-website-g7q2.vercel.app',
+  'https://civil-eng-website-g7q2-git-main-fercho555s-projects.vercel.app',
   'http://localhost:3000' // for local development if needed
 ];
 
@@ -36,7 +40,7 @@ const corsOptions = {
 
 // Use CORS middleware with options
 app.use(cors(corsOptions));
-
+app.use('/auth', authRoute);
 // Handle OPTIONS preflight requests for all routes
 app.options('*', cors(corsOptions));
 
@@ -88,4 +92,4 @@ async function startServer() {
   }
 }
 
-startServer();
+module.exports = serverless(app);

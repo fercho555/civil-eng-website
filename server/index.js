@@ -64,11 +64,14 @@ app.options('*', cors(corsOptions));
 app.set('trust proxy', 1);
 app.use(helmet());
 app.use(express.json({ limit: '2mb' }));       // avoid giant payloads
+console.log('JSON body parser applied');
 // Add default middleware to avoid undefined req.body
 app.use((req, res, next) => {
+  console.log('Request received:', req.method, req.url);
   req.body = req.body || {};
   next();
 });
+console.log('req.body default middleware applied');
 app.use(express.urlencoded({ extended: true }));
 app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
 app.use('/api/idf', freeAccessMiddleware);
