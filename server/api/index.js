@@ -6,6 +6,7 @@ const cors = require('cors');
 const { MongoClient } = require('mongodb');
 const path = require('path');
 const authRoute = require('../routes/auth');
+const connectToDatabase = require('../utils/db');
 
 const contactRoute = require('./routes/contact');
 const enrichRoute = require('./routes/enrich');
@@ -47,7 +48,17 @@ app.use(cors(corsOptions));
 app.use(express.json());
 // 3. Handle OPTIONS preflight requests for all routes
 app.options('/*splat', cors(corsOptions)); //Explicitly handle OPTIONS
-// 4. Mount your API routes
+// 4. Attach MongoDB per-request
+app.use(async (req, res, next) => {
+  try {
+    const { db } = await connectToDatabase();
+    req.db = db;
+    next();
+  } catch (error) {
+    next(error);
+  }
+});
+// 5. Mount your API routes
 app.use('/auth', authRoute);
 
 // === 1. MongoDB Setup ===

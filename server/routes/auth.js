@@ -44,7 +44,7 @@ router.post('/login', async (req, res) => {
   try {
     console.log('Login route hit, req.body:', req.body);
     const { username, password } = req.body;
-    const db = req.app.locals.db;
+    const db = req.db;
 
     if (!username || !password) {
       return res.status(400).json({ error: "Username and password are required." });
