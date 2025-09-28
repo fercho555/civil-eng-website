@@ -32,9 +32,15 @@ const allowedOrigins = [
 // CORS configuration
 const corsOptions = {
   origin: (origin, callback) => {
-    if (!origin) return callback(null, true); // allow curl/postman without origin
-    if (allowedOrigins.includes(origin)) callback(null, true);
-    else callback(new Error('Not allowed by CORS'));
+    //if (!origin) return callback(null, true); // allow curl/postman without origin
+    const allowedPattern = /^https:\/\/civil-eng-website-g7q2(-[a-z0-9]+)?-fercho555s-projects\.vercel\.app$|^https:\/\/civil-eng-website\.vercel\.app$|^http:\/\/localhost:3000$/;
+    //if (allowedOrigins.includes(origin)) callback(null, true);
+    //else callback(new Error('Not allowed by CORS'));
+    if (!origin || allowedPattern.test(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
