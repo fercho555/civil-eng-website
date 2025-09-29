@@ -5,38 +5,35 @@ const serverless = require('serverless-http');
 const cors = require('cors');
 const { MongoClient } = require('mongodb');
 const path = require('path');
-const authRoute = require('../routes/auth');
-const connectToDatabase = require('../utils/db');
 
+const authRoute = require('../routes/auth');
 const contactRoute = require('./routes/contact');
 const enrichRoute = require('./routes/enrich');
 const projectRoute = require('./routes/project');
 const reportRoute = require('./routes/report');
 const idfRoute = require('./routes/idf');
+const connectToDatabase = require('../utils/db');
 
 const app = express();
-// Add logging middleware right after creating the app 
+
+// Logging middleware for debugging
 app.use((req, res, next) => {
-  console.log('Request:', req.method, req.url, 'Origin:',req.headers.origin);
+  console.log('Request:', req.method, req.url, 'Origin:', req.headers.origin);
   next();
 });
-// CORS configuration to allow requests from deployed frontend URL
+
+// Only allow custom domains and local development for CORS
 const allowedOrigins = [
-  'https://civil-eng-website.vercel.app',
-  'https://civil-eng-website-g7q2.vercel.app',
-  'https://civil-eng-website-g7q2-93x1o7qrr-fercho555s-projects.vercel.app',
-  'https://civil-eng-website-g7q2-git-main-fercho555s-projects.vercel.app',
-  'http://localhost:3000' // for local development if needed
+  'https://civispec.com',
+  'https://www.civispec.com',
+  'http://localhost:3000'
 ];
 
-// CORS configuration
 const corsOptions = {
   origin: (origin, callback) => {
-    //if (!origin) return callback(null, true); // allow curl/postman without origin
-    const allowedPattern = /^https:\/\/civil-eng-website-g7q2(-[a-z0-9]+)?-fercho555s-projects\.vercel\.app$|^https:\/\/civil-eng-website\.vercel\.app$|^http:\/\/localhost:3000$/;
-    //if (allowedOrigins.includes(origin)) callback(null, true);
-    //else callback(new Error('Not allowed by CORS'));
-    if (!origin || allowedPattern.test(origin)) {
+    // Allow requests with no Origin (curl, Postman)
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
       callback(new Error('Not allowed by CORS'));
@@ -47,14 +44,16 @@ const corsOptions = {
   allowedHeaders: ['Content-Type', 'Authorization'],
 };
 
-// 1. Use CORS middleware with options before routes and before body parsing
+// Enable CORS middleware globally
 app.use(cors(corsOptions));
 
-// 2. Parse JSON
+// Handle preflight OPTIONS requests for all routes (important for some browsers/APIs)
+app.options('*', cors(corsOptions));
+
+// Parse JSON bodies on all requests
 app.use(express.json());
-// 3. Handle OPTIONS preflight requests for all routes
-app.options('/*splat', cors(corsOptions)); //Explicitly handle OPTIONS
-// 4. Attach MongoDB per-request
+
+// Attach a MongoDB connection to each request
 app.use(async (req, res, next) => {
   try {
     const { db } = await connectToDatabase();
@@ -64,14 +63,38 @@ app.use(async (req, res, next) => {
     next(error);
   }
 });
-// 5. Mount your API routes
-app.use('/auth', authRoute);
 
-// === 1. MongoDB Setup ===
+// Register API route handlers
+app.use('/auth', authRoute);
+app.use('/api/contact', contactRoute);
+app.use('/api/enrich-location', enrichRoute);
+app.use('/api/project', projectRoute);
+app.use('/api/report', reportRoute);
+app.use('/api/idf', idfRoute);
+
+// Serve static built React frontend (production)
+app.use(express.static(path.join(__dirname, 'client/build')));
+
+// Catch-all route to serve React's index.html for any non-API routes
+app.get('/*', (req, res) => {
+  res.sendFile(path.join(__dirname, 'client/build', 'index.html'));
+});
+
+// CORS and general error handling middleware (must be last)
+app.use((err, req, res, next) => {
+  if (err.message === 'Not allowed by CORS') {
+    res.status(403).json({ error: 'CORS policy does not allow access from this origin.' });
+  } else {
+    next(err);
+  }
+});
+
+// MongoDB setup (for starting a local/standalone server)
+// You may OMIt calling startServer() if using serverless for Vercel
 const uri = process.env.MONGO_URI;
 const client = new MongoClient(uri, {
-  tls: true,                  // Ensure TLS for Render
-  serverSelectionTimeoutMS: 5000,  // Faster fail on bad connection
+  tls: true,
+  serverSelectionTimeoutMS: 5000,
 });
 
 async function startServer() {
@@ -81,36 +104,19 @@ async function startServer() {
     app.locals.db = db;
     console.log('✅ Connected to MongoDB Atlas');
 
-    // Middleware to attach DB to every request
-    app.use((req, res, next) => {
-      req.db = db;
-      next();
-    });
+    // Middleware to attach db per request is already set above
 
-    // === 2. API Routes ===
-    app.use('/api/idf', idfRoute);
-    app.use('/api/contact', contactRoute);
-    app.use('/api/enrich-location', enrichRoute);
-    app.use('/api/project', projectRoute);
-    app.use('/api/report', reportRoute);
-
-    // === 3. Serve React Frontend (Production) ===
-    app.use(express.static(path.join(__dirname, 'client/build')));
-
-    // Catch-all route for React (Express 4 compatible)
-    app.get('/*', (req, res) => {
-      res.sendFile(path.join(__dirname, 'client/build', 'index.html'));
-    });
-
-    // === 4. Start Server ===
     const PORT = process.env.PORT || 3000;
     app.listen(PORT, () => {
       console.log(`🚀 Server running on port ${PORT}`);
     });
   } catch (err) {
     console.error('❌ Failed to connect to MongoDB or start server:', err);
-    process.exit(1); // Exit if DB or server fails
+    process.exit(1);
   }
 }
+
+// Uncomment if running locally, otherwise omit for Vercel serverless
+// startServer();
 
 module.exports = serverless(app);
