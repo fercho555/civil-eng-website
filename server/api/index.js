@@ -26,6 +26,7 @@ app.use((req, res, next) => {
 const allowedOrigins = [
   'https://civispec.com',
   'https://www.civispec.com',
+  'https://civil-eng-website-nye9iok9t-fercho555s-projects.vercel.app',
   'http://localhost:3000'
 ];
 

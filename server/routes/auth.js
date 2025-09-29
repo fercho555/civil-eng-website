@@ -45,13 +45,15 @@ router.post('/login', async (req, res) => {
     console.log('Login route hit, req.body:', req.body);
     const { username, password } = req.body;
     const db = req.db;
-
+    console.log(`Authenticating user: ${username}`);
     if (!username || !password) {
+      console.log("Missing username or password");  
       return res.status(400).json({ error: "Username and password are required." });
     }
 
     const user = await db.collection('users').findOne({ username });
     if (!user) {
+      console.log("User not found");  
       return res.status(401).json({ error: "Invalid username or password" });
     }
     if (!user.password_hash) {
@@ -68,6 +70,7 @@ router.post('/login', async (req, res) => {
     // }
     const isMatch = await bcrypt.compare(password, user.password_hash);
     if (!isMatch) {
+      console.log("Password mismatch");  
       return res.status(401).json({ error: "Invalid credentials" });
     }
     
@@ -78,7 +81,7 @@ router.post('/login', async (req, res) => {
       secret,
       { expiresIn: '1h' }
     );
-
+    console.log("Authentication successful, sending token");
     res.json({ token, userId: user._id, username: user.username, role: user.role });
   } catch (err) {
     //console.error('Error in /api/auth/login:', err);
