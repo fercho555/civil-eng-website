@@ -113,7 +113,7 @@ app.use((err, req, res, next) => {
 const uri = process.env.MONGO_URI;
 const client = new MongoClient(uri, {
   tls: true,
-  serverSelectionTimeoutMS: 7000,
+  serverSelectionTimeoutMS: 5000,
 });
 
 async function startServer() {
