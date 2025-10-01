@@ -23,6 +23,7 @@ app.use((req, res, next) => {
 });
 
 // Only allow custom domains and local development for CORS
+//Latest version sep 30/25
 const allowedOrigins = [
   'https://civispec.com',
   'https://www.civispec.com',
@@ -47,9 +48,26 @@ const corsOptions = {
 
 // Enable CORS middleware globally
 app.use(cors(corsOptions));
+app.options('/*', (req, res) => {
+  const allowedOrigins = [
+    'https://civispec.com',
+    'https://www.civispec.com',
+    'https://civil-eng-website-nye9iok9t-fercho555s-projects.vercel.app',
+    'http://localhost:3000'
+  ];
+  const origin = req.headers.origin;
 
+  if (allowedOrigins.includes(origin)) {
+    res.header('Access-Control-Allow-Origin', origin);
+  }
+
+  res.header('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type,Authorization');
+  res.header('Access-Control-Allow-Credentials', 'true');
+  res.sendStatus(204); // No Content
+});
 // Handle preflight OPTIONS requests for all routes (important for some browsers/APIs)
-app.options('*', cors(corsOptions));
+//app.options('*', cors(corsOptions)); sep 30 dated from
 
 // Parse JSON bodies on all requests
 app.use(express.json());
@@ -95,7 +113,7 @@ app.use((err, req, res, next) => {
 const uri = process.env.MONGO_URI;
 const client = new MongoClient(uri, {
   tls: true,
-  serverSelectionTimeoutMS: 5000,
+  serverSelectionTimeoutMS: 6000,
 });
 
 async function startServer() {
