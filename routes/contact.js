@@ -55,7 +55,7 @@ router.post('/', async (req, res) => {
     from: process.env.EMAIL_USER,
     to: email,
     subject: 'We received your message!',
-    text: `Hi ${name},\n\nThanks for contacting us. Here's what you sent:\n\n"${message}"\n\nWe'll get back to you soon.\n\n- Civil Engineering Practice`
+    text: `Hi ${name},\n\nThanks for contacting us. Here's what you sent:\n\n"${message}"\n\nWe'll get back to you soon.\n\n- CiviSpec`
   };
 
   try {

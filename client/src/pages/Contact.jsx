@@ -109,7 +109,7 @@ function Contact() {
             onChange={handleChange}
             className="mr-2"
           />
-          Send me a copy
+          // Send me a copy
         </label>
 
         <button
