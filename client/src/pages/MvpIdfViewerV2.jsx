@@ -579,4 +579,4 @@ const MvpIdfViewerV2 = () => {
   );
 };
 
-export default MvpIdfViewer2;
+export default MvpIdfViewerV2;
