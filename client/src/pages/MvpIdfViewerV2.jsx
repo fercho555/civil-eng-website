@@ -1,4 +1,4 @@
-/* global __google_maps_api_key */
+// /* global __google_maps_api_key */
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { useAuth } from '../context/AuthContext';
@@ -35,8 +35,8 @@ const SearchIcon = (props) => (
 
 const allReturnPeriods = ['2', '5', '10', '25', '50', '100'];
 
-const MVP_IDFViewer_v2 = () => {
-  console.log('MVP_IDFViewer_v2 component rendered');
+const MvpIdfViewerV2 = () => {
+  console.log('MvpIdfViewerV2 component rendered');
   const { user, token } = useAuth();
   console.log('Current user at mount:', user, typeof user);
   const [station, setStation] = useState(null);
@@ -398,7 +398,7 @@ const MVP_IDFViewer_v2 = () => {
     );
   }
   if (false) { // Change to false to disable after testing
-  return <div>Testing MVP_IDFViewer_v2 rendering</div>;
+  return <div>Testing MvpIdfViewerV2 rendering</div>;
 }
   return (
     <div className="bg-gray-50 min-h-screen flex flex-col items-center justify-center p-4 sm:p-6 lg:p-8 font-sans">
@@ -579,4 +579,4 @@ const MVP_IDFViewer_v2 = () => {
   );
 };
 
-export default MVP_IDFViewer_v2;
+export default MvpIdfViewer2;

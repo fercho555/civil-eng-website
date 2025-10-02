@@ -4,12 +4,12 @@ import { Routes, Route } from 'react-router-dom';
 import Home from './pages/Home.jsx';
 import About from './pages/About.jsx';
 import Services from './pages/Services.jsx';
-import Contact from './pages/Contact.jsx';
+//import Contact from './pages/Contact.jsx';
 import Navbar from './components/Navbar.jsx';
 import Footer from './components/Footer.jsx';
 import AdminDashboard from './pages/AdminDashboard.jsx';
-import ProjectWizard from './pages/ProjectWizard';
-import MVP_IDFViewer_v2 from './pages/MVP_IDFViewer_v2.jsx';
+//import ProjectWizard from './pages/ProjectWizard';
+import MvpIdfViewerV2 from './pages/MvpIdfViewerV2.jsx';
 import TestAutocomplete from './pages/TestAutocomplete.jsx';
 import { PrivateRoute } from './components/PrivateRoute';
 import LoginPage from './pages/LoginPage.jsx';
@@ -31,7 +31,7 @@ function App() {
           
           <Route path="/start" element={
             <PrivateRoute>
-              <MVP_IDFViewer_v2 />
+              <MvpIdfViewerV2 />
             </PrivateRoute>
           } />
           <Route path="/admin" element={
@@ -39,7 +39,7 @@ function App() {
             <AdminDashboard />
           </AdminRoute>
           } />
-          <Route path="/idf-viewer" element={<MVP_IDFViewer_v2 />} />
+          <Route path="/idf-viewer" element={<MvpIdfViewerV2 />} />
           <Route path="/test-autocomplete" element={<TestAutocomplete />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/pricing" element={<PricingPage />} />
