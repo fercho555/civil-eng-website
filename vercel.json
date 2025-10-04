@@ -11,15 +11,9 @@
       "config": { "distDir": "build" }
     }
   ],
-  "rewrites": [
-    {
-      "source": "/api/:path*",
-      "destination": "/api/index.js"
-    },
-    {
-      "source": "/:path*",
-      "destination": "/index.html"
-    }
+ "routes": [
+    { "src": "/api/(.*)", "dest": "/api/index.js" },
+    { "src": "/(.*)", "dest": "/index.html" }
   ],
   "headers": [
     {
