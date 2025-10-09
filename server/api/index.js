@@ -1,21 +1,43 @@
-require('dotenv').config();
+const path = require('path');
+require('dotenv').config({ path: path.resolve(__dirname, '../.env') });
+console.log('Loaded MONGO_URI:', process.env.MONGO_URI);
+
+
+// ===== Mongoose Connection (NEW ADDITION) =====
+const mongoose = require('mongoose');
+const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/civil-eng-db';
+mongoose.connect(MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true })
+  .then(() => console.log("Mongoose MongoDB connection established successfully."))
+  .catch((err) => {
+    console.error("Mongoose connection error:", err);
+    process.exit(1);
+  });
+// ==============================================
+
 
 const express = require('express');
-const serverless = require('serverless-http');
 const cors = require('cors');
-const { MongoClient } = require('mongodb');
-const path = require('path');
+const { MongoClient, ObjectId } = require('mongodb');
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
+
+const RefreshToken = require('../models/refreshToken'); // Add import here
 
 const authRoute = require('../routes/auth');
-const contactRoute = require('./routes/contact');
-const enrichRoute = require('./routes/enrich');
-const projectRoute = require('./routes/project');
-const reportRoute = require('./routes/report');
-const idfRoute = require('./routes/idf');
+const contactRoute = require('../routes/contact');
+const enrichRoute = require('../../routes/enrich');
+const projectRoute = require('../../routes/project');
+const reportRoute = require('../../routes/report');
+const idfRoute = require('../../routes/idf');
 const connectToDatabase = require('../utils/db');
 
+const authenticateJWT = require('../middlewares/authenticate');
+const authorizeRoles = require('../middlewares/authorizeRoles');
+const userRoute = require('../routes/user');
 const app = express();
 
+console.log('Server started');
+console.log('Auth routes loaded:', authRoute);
 // Logging middleware for debugging
 app.use((req, res, next) => {
   console.log('Request:', req.method, req.url, 'Origin:', req.headers.origin);
@@ -23,7 +45,6 @@ app.use((req, res, next) => {
 });
 
 // Only allow custom domains and local development for CORS
-//Latest version sep 30/25
 const allowedOrigins = [
   'https://civispec.com',
   'https://www.civispec.com',
@@ -33,7 +54,6 @@ const allowedOrigins = [
 
 const corsOptions = {
   origin: (origin, callback) => {
-    // Allow requests with no Origin (curl, Postman)
     if (!origin) return callback(null, true);
     if (allowedOrigins.includes(origin)) {
       callback(null, true);
@@ -46,32 +66,24 @@ const corsOptions = {
   allowedHeaders: ['Content-Type', 'Authorization'],
 };
 
-// Enable CORS middleware globally
 app.use(cors(corsOptions));
-app.options('/*', (req, res) => {
-  const allowedOrigins = [
-    'https://civispec.com',
-    'https://www.civispec.com',
-    'https://civil-eng-website-nye9iok9t-fercho555s-projects.vercel.app',
-    'http://localhost:3000'
-  ];
+app.options('/*splat', (req, res) => {
   const origin = req.headers.origin;
-
   if (allowedOrigins.includes(origin)) {
     res.header('Access-Control-Allow-Origin', origin);
   }
-
   res.header('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS');
   res.header('Access-Control-Allow-Headers', 'Content-Type,Authorization');
   res.header('Access-Control-Allow-Credentials', 'true');
-  res.sendStatus(204); // No Content
+  res.sendStatus(204);
 });
-// Handle preflight OPTIONS requests for all routes (important for some browsers/APIs)
-//app.options('*', cors(corsOptions)); sep 30 dated from
 
 // Parse JSON bodies on all requests
 app.use(express.json());
-
+app.get('/api/test', (req, res) => {
+  console.log('API test endpoint hit');
+  res.json({ message: 'API test endpoint working' });
+});
 // Attach a MongoDB connection to each request
 app.use(async (req, res, next) => {
   try {
@@ -83,20 +95,165 @@ app.use(async (req, res, next) => {
   }
 });
 
+// Signup POST route - assign default role 'user'
+app.post('/auth/signup', async (req, res) => {
+  try {
+    const db = req.db;
+    const usersCollection = db.collection('users');
+    const { username, password } = req.body;
+
+    if (!username || !password) {
+      return res.status(400).json({ error: 'Username and password are required.' });
+    }
+
+    const existingUser = await usersCollection.findOne({ username });
+    if (existingUser) {
+      return res.status(409).json({ error: 'Username already exists.' });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    const newUser = {
+      username,
+      password: hashedPassword,
+      role: 'user',
+      trial_start: new Date(),
+      trial_duration_days: 7,
+      emailVerified: false
+    };
+
+    await usersCollection.insertOne(newUser);
+
+    res.status(201).json({ message: 'User created successfully.' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error.' });
+  }
+});
+
+// Updated login route with guard for JWT secrets and refresh token saving
+app.post('/auth/login', async (req, res) => {
+  const jwtSecret = process.env.JWT_SECRET;
+const refreshSecret = process.env.REFRESH_TOKEN_SECRET;
+
+if (!jwtSecret || !refreshSecret) {
+  console.error("Missing JWT_SECRET or REFRESH_TOKEN_SECRET in environment variables");
+  return res.status(500).json({
+    error: "Server misconfiguration: JWT_SECRET or REFRESH_TOKEN_SECRET is missing."
+  });
+}
+
+try {
+  const db = req.db;
+  const usersCollection = db.collection('users');
+  const { username, password } = req.body;
+
+  if (!username || !password) {
+    return res.status(400).json({ error: "Username and password are required." });
+  }
+
+  // IMPORTANT: Change 'password' field to 'password_hash' here:
+  const user = await usersCollection.findOne({ username });
+  if (!user || !user.password_hash) {
+    return res.status(401).json({ error: "Invalid username or password." });
+  }
+
+  const isMatch = await bcrypt.compare(password, user.password_hash);
+  if (!isMatch) {
+    return res.status(401).json({ error: "Invalid username or password." });
+  }
+
+  const payload = {
+    userId: user._id,
+    username: user.username,
+    role: user.role
+  };
+
+  const accessToken = jwt.sign(payload, jwtSecret, { expiresIn: '15m' });
+  const refreshTokenString = jwt.sign(payload, refreshSecret, { expiresIn: '7d' });
+
+  // Create refresh token document and save to MongoDB
+  const newRefreshToken = new RefreshToken({
+    user: user._id,
+    token: refreshTokenString,
+    expires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+    createdAt: Date.now(),
+    revokedAt: null,
+    replacedByToken: null,
+    createdByIp: req.ip
+  });
+
+  try {
+    await newRefreshToken.save();
+    console.log('Refresh token saved:', refreshTokenString);
+  } catch (saveErr) {
+    console.error('Failed to save refresh token:', saveErr);
+    return res.status(500).json({ error: 'Failed to save refresh token' });
+  }
+
+  res.status(200).json({
+    message: "Login successful.",
+    accessToken,
+    refreshToken: refreshTokenString
+  });
+} catch (err) {
+  console.error("Login error:", err);
+  res.status(500).json({ error: "Internal server error." });
+}
+
+});
+// Protected IDF curve route with trial check
+app.get('/api/idf/curve', authenticateJWT, async (req, res) => {
+  const db = req.db;
+  const usersCollection = db.collection('users');
+
+  try {
+    const user = await usersCollection.findOne({ _id: new ObjectId(req.user.userId) });
+
+    if (!user) {
+      return res.status(401).json({ error: 'User not found' });
+    }
+
+    const now = new Date();
+    const trialEnd = new Date(user.trial_start);
+    trialEnd.setDate(trialEnd.getDate() + user.trial_duration_days);
+
+    if (now > trialEnd) {
+      return res.status(403).json({ error: 'Trial expired. Please upgrade.' });
+    }
+
+    res.json({ message: 'Here is your IDF curve data...' });
+  } catch (err) {
+    console.error('IDF route error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Example admin-only route protected by RBAC
+app.get('/api/admin/dashboard', authenticateJWT, authorizeRoles('admin'), (req, res) => {
+  res.json({ message: 'Welcome to the admin dashboard!' });
+});
+
 // Register API route handlers
 app.use('/auth', authRoute);
 app.use('/api/contact', contactRoute);
+app.use('/api/user', userRoute);
 app.use('/api/enrich-location', enrichRoute);
 app.use('/api/project', projectRoute);
 app.use('/api/report', reportRoute);
 app.use('/api/idf', idfRoute);
 
 // Serve static built React frontend (production)
-app.use(express.static(path.join(__dirname, 'client/build')));
+app.use(express.static(path.resolve(__dirname, '../../client/build')));
 
 // Catch-all route to serve React's index.html for any non-API routes
-app.get('/*', (req, res) => {
-  res.sendFile(path.join(__dirname, 'client/build', 'index.html'));
+app.get('/*splat', (req, res) => {
+  res.sendFile(path.resolve(__dirname, '../../client/build', 'index.html'));
+});
+
+// Catch all 404 handler - put this last before error handlers
+app.use((req, res) => {
+  res.status(404).json({ error: 'Not Found', path: req.path });
 });
 
 // CORS and general error handling middleware (must be last)
@@ -108,34 +265,15 @@ app.use((err, req, res, next) => {
   }
 });
 
-// MongoDB setup (for starting a local/standalone server)
-// You may OMIt calling startServer() if using serverless for Vercel
-const uri = process.env.MONGO_URI;
-const client = new MongoClient(uri, {
-  tls: true,
-  serverSelectionTimeoutMS: 5000,
+app.get('/', (req, res) => {
+  console.log('Root endpoint hit');
+  res.send('Hello World');
 });
 
-async function startServer() {
-  try {
-    await client.connect();
-    const db = client.db('contactDB');
-    app.locals.db = db;
-    console.log('✅ Connected to MongoDB Atlas');
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => {
+  console.log(`Express server listening on port ${PORT}`);
+});
 
-    // Middleware to attach db per request is already set above
 
-    const PORT = process.env.PORT || 3000;
-    app.listen(PORT, () => {
-      console.log(`🚀 Server running on port ${PORT}`);
-    });
-  } catch (err) {
-    console.error('❌ Failed to connect to MongoDB or start server:', err);
-    process.exit(1);
-  }
-}
 
-// Uncomment if running locally, otherwise omit for Vercel serverless
-// startServer();
-
-module.exports = serverless(app);
