@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "installCommand": "npm run install",
+  "installCommand": "npm install --legacy-peer-deps",
   "builds": [
     {
       "src": "server/api/index.js",
