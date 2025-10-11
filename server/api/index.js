@@ -35,15 +35,10 @@ const authenticateJWT = require('../middlewares/authenticate');
 const authorizeRoles = require('../middlewares/authorizeRoles');
 const userRoute = require('../routes/user');
 const app = express();
-
-console.log('Server started');
-console.log('Auth routes loaded:', authRoute);
-// Logging middleware for debugging
 app.use((req, res, next) => {
-  console.log('Request:', req.method, req.url, 'Origin:', req.headers.origin);
+  console.log(`Incoming request method=${req.method} url=${req.url}`);
   next();
 });
-
 // Only allow custom domains and local development for CORS
 const allowedOrigins = [
   'https://civispec.com',
@@ -51,7 +46,6 @@ const allowedOrigins = [
   'https://civil-eng-website-nye9iok9t-fercho555s-projects.vercel.app',
   'http://localhost:3000'
 ];
-
 const corsOptions = {
   origin: (origin, callback) => {
     if (!origin) return callback(null, true);
@@ -67,16 +61,36 @@ const corsOptions = {
 };
 
 app.use(cors(corsOptions));
-app.options('/*splat', (req, res) => {
-  const origin = req.headers.origin;
-  if (allowedOrigins.includes(origin)) {
-    res.header('Access-Control-Allow-Origin', origin);
+//app.options('*', cors(corsOptions)); // Ensures preflight is handled for all routes
+// app.options('/*path', (req, res) => {
+//   const origin = req.headers.origin;
+//   if (allowedOrigins.includes(origin)) {
+//     res.header('Access-Control-Allow-Origin', origin);
+//   }
+//   res.header('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS');
+//   res.header('Access-Control-Allow-Headers', 'Content-Type,Authorization');
+//   res.header('Access-Control-Allow-Credentials', 'true');
+//   res.sendStatus(204);
+// });
+console.log('Server started');
+console.log('Auth routes loaded:', authRoute);
+// Logging middleware for debugging
+app.use((req, res, next) => {
+  //console.log('Request:', req.method, req.url, 'Origin:', req.headers.origin);
+  //next();
+  if (req.method === 'OPTIONS') {
+    res.header('Access-Control-Allow-Origin', req.headers.origin || '*');
+    res.header('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    res.header('Access-Control-Allow-Credentials', 'true');
+    res.sendStatus(200);
+  } else {
+    next();
   }
-  res.header('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Content-Type,Authorization');
-  res.header('Access-Control-Allow-Credentials', 'true');
-  res.sendStatus(204);
 });
+
+
+
 
 // Parse JSON bodies on all requests
 app.use(express.json());
