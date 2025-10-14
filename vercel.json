@@ -1,36 +1,15 @@
 {
   "version": 2,
-  "installCommand": "npm install --legacy-peer-deps",
-  "builds": [
-    {
-      "src": "server/api/index.js",
-      "use": "@vercel/node"
-    },
-    {
-      "src": "client/package.json",
-      "use": "@vercel/static-build",
-      "config": { "distDir": "build" }
-    }
-  ],
+
   "rewrites": [
-    {
-    "source": "/api/:path*",
-    "destination": "/api/index.js"
-  },
-  {
+   { 
+    "source": "/api/:path*", 
+    "destination": "/api/index.js" 
+   }, 
+   {
     "source": "/(.*)",
     "destination": "/index.html"
-  }
-  ],
-  "headers": [
-    {
-      "source": "/api/:path*",
-      "headers": [
-        { "key": "Access-Control-Allow-Origin", "value": "https://civispec.com" },
-        { "key": "Access-Control-Allow-Methods", "value": "GET, POST, OPTIONS, PUT, DELETE" },
-        { "key": "Access-Control-Allow-Headers", "value": "Content-Type, Authorization" },
-        { "key": "Access-Control-Allow-Credentials", "value": "true" }
-      ]
-    }
+   }
   ]
+
 }

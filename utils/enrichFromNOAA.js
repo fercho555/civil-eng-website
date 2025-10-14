@@ -1,4 +1,16 @@
-const dbPromise = require('../db');
+const path = require('path');
+console.log('Debug: __dirname of enrichFromNOAA:', __dirname);
+const dbPath = path.resolve(__dirname, '../../db.js');
+console.log('Debug: Resolved absolute path to db.js:', dbPath);
+
+try {
+  var dbPromise = require(dbPath);
+} catch (error) {
+  console.error('Error requiring db at resolved path:', dbPath);
+  console.error(error);
+  throw error;  // Rethrow so your app fails loudly here
+}
+
 const { getRegionForCoordinates } = require('./matchRegion');
 const fetchNoaaCsv = require('./fetchNoaaCsv');
 const fetchFromNOAACDO = require('./fetchFromNOAACDO');

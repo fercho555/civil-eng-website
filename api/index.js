@@ -1,5 +1,6 @@
+
 const path = require('path');
-require('dotenv').config({ path: path.resolve(__dirname, '../.env') });
+require('dotenv').config({ path: path.resolve(__dirname, '../server/.env') });
 console.log('Loaded MONGO_URI:', process.env.MONGO_URI);
 
 
@@ -21,33 +22,50 @@ const { MongoClient, ObjectId } = require('mongodb');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 
-const RefreshToken = require('../models/refreshToken'); // Add import here
+const RefreshToken = require('../server/models/refreshToken'); // Add import here
 
-const authRoute = require('../routes/auth');
-const contactRoute = require('../routes/contact');
-const enrichRoute = require('../../routes/enrich');
-const projectRoute = require('../../routes/project');
-const reportRoute = require('../../routes/report');
-const idfRoute = require('../../routes/idf');
-const connectToDatabase = require('../utils/db');
+const authRoute = require('../server/routes/auth');
+const contactRoute = require('../server/routes/contact');
+const enrichRoute = require('../archive-node-backend/routes/enrich');
+const projectRoute = require('../archive-node-backend/routes/project');
+const reportRoute = require('../archive-node-backend/routes/report');
+const idfRoute = require('../archive-node-backend/routes/idf');
+const connectToDatabase = require('../db');
 
-const authenticateJWT = require('../middlewares/authenticate');
-const authorizeRoles = require('../middlewares/authorizeRoles');
-const userRoute = require('../routes/user');
+const authenticateJWT = require('../server/middlewares/authenticate');
+const authorizeRoles = require('../server/middlewares/authorizeRoles');
+const userRoute = require('../server/routes/user');
 const app = express();
+
+// ===1. Diagnostic middleware to log requests & responses
 app.use((req, res, next) => {
-  console.log(`Incoming request method=${req.method} url=${req.url}`);
+  console.log(`Received request: method=${req.method} url=${req.url}`);
+  console.log('Request headers:', JSON.stringify(req.headers, null, 2));
+
+  // Patch res.send/res.status to detect if response already sent early
+  const originalSend = res.send;
+  res.send = function(...args) {
+    console.log(`Sending response early with statusCode=${res.statusCode} for ${req.method} ${req.url}`);
+    return originalSend.apply(this, args);
+  };
+
+  res.on('finish', () => {
+    console.log(`Response sent: status=${res.statusCode}`);
+    console.log('Response headers:', JSON.stringify(res.getHeaders(), null, 2));
+  });
   next();
 });
-// Only allow custom domains and local development for CORS
+// === 2. Allowed origins including dynamic Vercel URL ===
 const allowedOrigins = [
   'https://civispec.com',
   'https://www.civispec.com',
-  'https://civil-eng-website-nye9iok9t-fercho555s-projects.vercel.app',
+  `https://${process.env.VERCEL_URL}`, // Dynamic current deployment URL
   'http://localhost:3000'
 ];
+// === 3. CORS options and global middleware ===
 const corsOptions = {
-  origin: (origin, callback) => {
+   origin: function (origin, callback) { 
+    console.log('CORS origin check for:', origin);
     if (!origin) return callback(null, true);
     if (allowedOrigins.includes(origin)) {
       callback(null, true);
@@ -57,43 +75,36 @@ const corsOptions = {
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
+  allowedHeaders: ['Content-Type', 'Authorization']
 };
-
+// Global CORS middleware for all routes
 app.use(cors(corsOptions));
-//app.options('*', cors(corsOptions)); // Ensures preflight is handled for all routes
-// app.options('/*path', (req, res) => {
-//   const origin = req.headers.origin;
-//   if (allowedOrigins.includes(origin)) {
-//     res.header('Access-Control-Allow-Origin', origin);
-//   }
-//   res.header('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS');
-//   res.header('Access-Control-Allow-Headers', 'Content-Type,Authorization');
-//   res.header('Access-Control-Allow-Credentials', 'true');
-//   res.sendStatus(204);
-// });
-console.log('Server started');
-console.log('Auth routes loaded:', authRoute);
-// Logging middleware for debugging
-app.use((req, res, next) => {
-  //console.log('Request:', req.method, req.url, 'Origin:', req.headers.origin);
-  //next();
-  if (req.method === 'OPTIONS') {
-    res.header('Access-Control-Allow-Origin', req.headers.origin || '*');
-    res.header('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS');
-    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-    res.header('Access-Control-Allow-Credentials', 'true');
-    res.sendStatus(200);
-  } else {
-    next();
-  }
-});
-
-
 
 
 // Parse JSON bodies on all requests
 app.use(express.json());
+
+// === 4. Explicit OPTIONS preflight handler, always reply with 200 & CORS headers ===
+app.options('/:splat(*)', (req, res) => {
+  console.log(`Preflight OPTIONS request received on ${req.url} from origin: ${req.headers.origin}`);
+  const origin = req.headers.origin;
+  console.log('Origin header:', origin);
+
+  if (allowedOrigins.includes(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    console.log('Setting Access-Control-Allow-Origin header:', origin);
+  } else {
+    console.log('Origin not allowed:', origin);
+  }
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
+  // Explicitly send small json 200
+  res.status(200).json({});
+});
+
+
+// === 5. Your existing routes below ===
 app.get('/api/test', (req, res) => {
   console.log('API test endpoint hit');
   res.json({ message: 'API test endpoint working' });
@@ -249,7 +260,7 @@ app.get('/api/admin/dashboard', authenticateJWT, authorizeRoles('admin'), (req, 
 });
 
 // Register API route handlers
-app.use('/auth', authRoute);
+app.use('/api/auth', authRoute);
 app.use('/api/contact', contactRoute);
 app.use('/api/user', userRoute);
 app.use('/api/enrich-location', enrichRoute);
@@ -258,11 +269,11 @@ app.use('/api/report', reportRoute);
 app.use('/api/idf', idfRoute);
 
 // Serve static built React frontend (production)
-app.use(express.static(path.resolve(__dirname, '../../client/build')));
+app.use(express.static(path.resolve(__dirname, '../client/build')));
 
 // Catch-all route to serve React's index.html for any non-API routes
-app.get('/*splat', (req, res) => {
-  res.sendFile(path.resolve(__dirname, '../../client/build', 'index.html'));
+app.get('/{*splat}', (req, res) => {
+  res.sendFile(path.resolve(__dirname, '../client/build', 'index.html'));
 });
 
 // Catch all 404 handler - put this last before error handlers
@@ -286,7 +297,7 @@ app.get('/', (req, res) => {
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
-  console.log(`Express server listening on port ${PORT}`);
+  console.log(`API server listening on port ${PORT}`);
 });
 
 

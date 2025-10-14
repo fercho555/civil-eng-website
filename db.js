@@ -1,8 +1,10 @@
 const { MongoClient } = require('mongodb');
-require('dotenv').config({ path: __dirname + '/../.env' });
+if (process.env.NODE_ENV !== 'production') {
+  require('dotenv').config({ path: __dirname + '/../.env' });
+}
 
 const uri = process.env.MONGO_URI;
-console.log('Loaded MONGO_URI:', uri); // for debugging
+console.log(`Loaded MONGO_URI: mongodb+srv://${uri.split('@')[0].split(':')[0]}:****@...`);
 if (!uri) {
   console.log('Loaded MONGO_URI:', uri); // Debug line
   throw new Error('❌ MONGO_URI is missing from environment variables.');
