@@ -112,7 +112,7 @@ app.get('/api/test', (req, res) => {
 // Attach a MongoDB connection to each request
 app.use(async (req, res, next) => {
   try {
-    const { db } = await connectToDatabase();
+    const db  = await connectToDatabase();
     req.db = db;
     next();
   } catch (error) {

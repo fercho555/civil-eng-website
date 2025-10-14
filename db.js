@@ -31,4 +31,4 @@ async function connectDB() {
   return dbInstance;
 }
 
-module.exports = connectDB();
+module.exports = connectDB;
