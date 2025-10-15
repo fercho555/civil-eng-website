@@ -36,7 +36,30 @@ const authenticateJWT = require('../server/middlewares/authenticate');
 const authorizeRoles = require('../server/middlewares/authorizeRoles');
 const userRoute = require('../server/routes/user');
 const app = express();
+// === New detailed CORS and OPTIONS logging middleware (insert here) ===
+app.use((req, res, next) => {
+  if (req.method === 'OPTIONS') {
+    console.log(`OPTIONS preflight request for ${req.url} from origin: ${req.headers.origin}`);
+  }
 
+  // Patch res.setHeader to log CORS related headers being set
+  const originalSetHeader = res.setHeader;
+  res.setHeader = function (name, value) {
+    if (name.toLowerCase().startsWith('access-control-allow')) {
+      console.log(`Setting header: ${name} = ${value}`);
+    }
+    return originalSetHeader.call(this, name, value);
+  };
+
+  res.on('finish', () => {
+    const acao = res.getHeader('Access-Control-Allow-Origin');
+    if (acao) {
+      console.log(`Response to ${req.method} ${req.url} included Access-Control-Allow-Origin: ${acao}`);
+    }
+  });
+
+  next();
+});
 // ===1. Diagnostic middleware to log requests & responses
 app.use((req, res, next) => {
   console.log(`Received request: method=${req.method} url=${req.url}`);
@@ -57,6 +80,7 @@ app.use((req, res, next) => {
 });
 // === 2. Allowed origins including dynamic Vercel URL ===
 const allowedOrigins = [
+  'https://civil-eng-website-1ugh.vercel.app',
   'https://civispec.com',
   'https://www.civispec.com',
   `https://${process.env.VERCEL_URL}`, // Dynamic current deployment URL
