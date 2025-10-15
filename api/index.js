@@ -64,10 +64,17 @@ const allowedOrigins = [
 ];
 // === 3. CORS options and global middleware ===
 const corsOptions = {
-   origin: function (origin, callback) { 
-    console.log('CORS origin check for:', origin);
-    if (!origin) return callback(null, true);
-    if (allowedOrigins.includes(origin)) {
+  origin: function (origin, callback) {
+    if (!origin) {
+      // Allow requests with no origin like curl or mobile apps
+      return callback(null, true);
+    }
+
+    // Match exact whitelist or any *.vercel.app subdomain dynamically
+    if (
+      allowedOrigins.includes(origin) ||
+      /\.vercel\.app$/.test(origin)
+    ) {
       callback(null, true);
     } else {
       callback(new Error('Not allowed by CORS'));
@@ -75,7 +82,7 @@ const corsOptions = {
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  allowedHeaders: ['Content-Type', 'Authorization'],
 };
 // Global CORS middleware for all routes
 app.use(cors(corsOptions));
