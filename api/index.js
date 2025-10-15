@@ -87,6 +87,21 @@ const corsOptions = {
 // Global CORS middleware for all routes
 app.use(cors(corsOptions));
 
+// === Handling all OPTIONS preflight requests for any route ===
+app.use((req, res, next) => {
+  if (req.method === 'OPTIONS') {
+    const origin = req.headers.origin;
+    console.log(`Preflight OPTIONS ${req.url} from origin: ${origin}`);
+    if (allowedOrigins.includes(origin) || /\.vercel\.app$/.test(origin)) {
+      res.setHeader('Access-Control-Allow-Origin', origin);
+    }
+    res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type,Authorization');
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+    return res.sendStatus(200); // Send 200 OK immediately on preflight
+  }
+  next(); // Continue for non-OPTIONS requests
+});
 
 // Parse JSON bodies on all requests
 app.use(express.json());
