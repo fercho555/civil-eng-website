@@ -92,15 +92,20 @@ app.use((req, res, next) => {
   if (req.method === 'OPTIONS') {
     const origin = req.headers.origin;
     console.log(`Preflight OPTIONS ${req.url} from origin: ${origin}`);
+
     if (allowedOrigins.includes(origin) || /\.vercel\.app$/.test(origin)) {
       res.setHeader('Access-Control-Allow-Origin', origin);
+    } else {
+      console.log('Origin not allowed by CORS:', origin);
+      return res.status(403).end();
     }
+
     res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type,Authorization');
     res.setHeader('Access-Control-Allow-Credentials', 'true');
-    return res.sendStatus(200); // Send 200 OK immediately on preflight
+    return res.status(204).end(); // No content, no body
   }
-  next(); // Continue for non-OPTIONS requests
+  next();
 });
 
 // Parse JSON bodies on all requests
