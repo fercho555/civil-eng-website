@@ -172,7 +172,7 @@ app.use(async (req, res, next) => {
 });
 
 // Signup POST route - assign default role 'user'
-app.post('/auth/signup', async (req, res) => {
+app.post('/api/auth/signup', async (req, res) => {
   try {
     const db = req.db;
     const usersCollection = db.collection('users');
@@ -208,7 +208,7 @@ app.post('/auth/signup', async (req, res) => {
 });
 
 // Updated login route with guard for JWT secrets and refresh token saving
-app.post('/auth/login', async (req, res) => {
+app.post('/api/auth/login', async (req, res) => {
   const jwtSecret = process.env.JWT_SECRET;
 const refreshSecret = process.env.REFRESH_TOKEN_SECRET;
 
@@ -230,10 +230,10 @@ try {
 
   // IMPORTANT: Change 'password' field to 'password_hash' here:
   const user = await usersCollection.findOne({ username });
-  if (!user || !user.password_hash) {
+  if (!user) {
     return res.status(401).json({ error: "Invalid username or password." });
   }
-
+// Compare plain text to hash
   const isMatch = await bcrypt.compare(password, user.password_hash);
   if (!isMatch) {
     return res.status(401).json({ error: "Invalid username or password." });
@@ -242,40 +242,42 @@ try {
   const payload = {
     userId: user._id,
     username: user.username,
-    role: user.role
+    role: user.role,
   };
-
+// Generate JWT or session
+   
   const accessToken = jwt.sign(payload, jwtSecret, { expiresIn: '15m' });
   const refreshTokenString = jwt.sign(payload, refreshSecret, { expiresIn: '7d' });
 
-  // Create refresh token document and save to MongoDB
-  const newRefreshToken = new RefreshToken({
-    user: user._id,
-    token: refreshTokenString,
-    expires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-    createdAt: Date.now(),
-    revokedAt: null,
-    replacedByToken: null,
-    createdByIp: req.ip
-  });
+    // Create refresh token document and save to MongoDB
+    const newRefreshToken = new RefreshToken({
+      user: user._id,
+      token: refreshTokenString,
+      expires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+      createdAt: Date.now(),
+      revokedAt: null,
+      replacedByToken: null,
+      createdByIp: req.ip
+    });
 
-  try {
-    await newRefreshToken.save();
-    console.log('Refresh token saved:', refreshTokenString);
-  } catch (saveErr) {
-    console.error('Failed to save refresh token:', saveErr);
-    return res.status(500).json({ error: 'Failed to save refresh token' });
+    try {
+      await newRefreshToken.save();
+      console.log('Refresh token saved:', refreshTokenString);
+    } catch (saveErr) {
+      console.error('Failed to save refresh token:', saveErr);
+      return res.status(500).json({ error: 'Failed to save refresh token' });
+    }
+
+    return res.status(200).json({
+      message: "Login successful.",
+      accessToken,
+      refreshToken: refreshTokenString,
+      user: payload,
+    });
+  } catch (err) {
+    console.error("Login error:", err);
+    res.status(500).json({ error: "Internal server error." });
   }
-
-  res.status(200).json({
-    message: "Login successful.",
-    accessToken,
-    refreshToken: refreshTokenString
-  });
-} catch (err) {
-  console.error("Login error:", err);
-  res.status(500).json({ error: "Internal server error." });
-}
 
 });
 // Protected IDF curve route with trial check
