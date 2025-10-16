@@ -19,8 +19,26 @@ mongoose.connect(MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true })
 const express = require('express');
 const cors = require('cors');
 const { MongoClient, ObjectId } = require('mongodb');
-const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
+const util = require('util');
+const scryptAsync = util.promisify(crypto.scrypt);
+
+async function verifyBcrypt(password, hash) {
+  return await bcrypt.compare(password, hash);
+}
+
+async function verifyScrypt(password, hash) {
+  const [saltHex, keyHex] = hash.split(':');
+  if (!saltHex || !keyHex) return false;
+
+  const salt = Buffer.from(saltHex, 'hex');
+  const key = Buffer.from(keyHex, 'hex');
+
+  const derivedKey = await scryptAsync(password, salt, key.length);
+  return crypto.timingSafeEqual(derivedKey, key);
+}
 
 const RefreshToken = require('../server/models/refreshToken'); // Add import here
 
@@ -234,11 +252,23 @@ try {
     return res.status(401).json({ error: "Invalid username or password." });
   }
 // Compare plain text to hash
-  const isMatch = await bcrypt.compare(password, user.password_hash);
+  let isMatch = false;
+// const isMatch = await bcrypt.compare(password, user.password_hash);
+if (user.password_hash.startsWith('$2a$') || user.password_hash.startsWith('$2b$') || user.password_hash.startsWith('$2y$')) {
+      isMatch = await verifyBcrypt(password, user.password_hash);
+    } else {
+      // Assume scrypt format "salt:key"
+      isMatch = await verifyScrypt(password, user.password_hash);
+    }
   if (!isMatch) {
     return res.status(401).json({ error: "Invalid username or password." });
   }
-
+// Upgrade scrypt hashes to bcrypt on successful login
+  if (!(user.password_hash.startsWith('$2a$') || user.password_hash.startsWith('$2b$') || user.password_hash.startsWith('$2y$'))) {
+    const newHash = await bcrypt.hash(password, 10);
+    await usersCollection.updateOne({ _id: user._id }, { $set: { password_hash: newHash } });
+    console.log(`Upgraded password hash to bcrypt for user ${username}`);
+  }
   const payload = {
     userId: user._id,
     username: user.username,
@@ -257,7 +287,7 @@ try {
       createdAt: Date.now(),
       revokedAt: null,
       replacedByToken: null,
-      createdByIp: req.ip
+      createdByIp: req.ip,
     });
 
     try {
@@ -276,7 +306,7 @@ try {
     });
   } catch (err) {
     console.error("Login error:", err);
-    res.status(500).json({ error: "Internal server error." });
+    res.status(500).json({ error: "Server error during login." });
   }
 
 });
