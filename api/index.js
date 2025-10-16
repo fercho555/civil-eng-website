@@ -172,7 +172,7 @@ app.use(async (req, res, next) => {
 });
 
 // Signup POST route - assign default role 'user'
-app.post('/api/auth/signup', async (req, res) => {
+app.post('/auth/signup', async (req, res) => {
   try {
     const db = req.db;
     const usersCollection = db.collection('users');
@@ -208,7 +208,7 @@ app.post('/api/auth/signup', async (req, res) => {
 });
 
 // Updated login route with guard for JWT secrets and refresh token saving
-app.post('/api/auth/login', async (req, res) => {
+app.post('/auth/login', async (req, res) => {
   const jwtSecret = process.env.JWT_SECRET;
 const refreshSecret = process.env.REFRESH_TOKEN_SECRET;
 
