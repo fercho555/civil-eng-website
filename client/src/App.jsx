@@ -4,11 +4,9 @@ import { Routes, Route } from 'react-router-dom';
 import Home from './pages/Home.jsx';
 import About from './pages/About.jsx';
 import Services from './pages/Services.jsx';
-//import Contact from './pages/Contact.jsx';
 import Navbar from './components/Navbar.jsx';
 import Footer from './components/Footer.jsx';
 import AdminDashboard from './pages/AdminDashboard.jsx';
-//import ProjectWizard from './pages/ProjectWizard';
 import MvpIdfViewerV2 from './pages/MvpIdfViewerV2.jsx';
 import TestAutocomplete from './pages/TestAutocomplete.jsx';
 import { PrivateRoute } from './components/PrivateRoute';
@@ -23,26 +21,35 @@ function App() {
       <Navbar />
       <main className="flex-grow">
         <Routes>
+          {/* Public Routes */}
           <Route path="/" element={<Home />} />
           <Route path="/about" element={<About />} />
           <Route path="/services" element={<Services />} />
           <Route path="/contact" element={<ContactForm />} />
-          <Route path="/admin" element={<AdminDashboard />} />
-          
-          <Route path="/start" element={
-            <PrivateRoute>
-              <MvpIdfViewerV2 />
-            </PrivateRoute>
-          } />
-          <Route path="/admin" element={
-          <AdminRoute>
-            <AdminDashboard />
-          </AdminRoute>
-          } />
-          <Route path="/idf-viewer" element={<MvpIdfViewerV2 />} />
-          <Route path="/test-autocomplete" element={<TestAutocomplete />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/pricing" element={<PricingPage />} />
+          <Route path="/test-autocomplete" element={<TestAutocomplete />} />
+          <Route path="/idf-viewer" element={<MvpIdfViewerV2 />} />
+
+          {/* Protected Routes */}
+          <Route
+            path="/start"
+            element={
+              <PrivateRoute>
+                <MvpIdfViewerV2 />
+              </PrivateRoute>
+            }
+          />
+
+          {/* Only for Admins */}
+          <Route
+            path="/admin"
+            element={
+              <AdminRoute>
+                <AdminDashboard />
+              </AdminRoute>
+            }
+          />
         </Routes>
       </main>
       <Footer />
@@ -52,6 +59,8 @@ function App() {
 
 export default App;
 
-
+export function useAuth() {
+  return useContext(AuthContext);
+}
 
 

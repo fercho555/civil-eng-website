@@ -1,13 +1,12 @@
-// /src/components/PrivateRoute.jsx
 import React from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { isTokenExpired } from '../utils/auth-utils';
 
-export function PrivateRoute({ children }) {
+export default function ProtectedRoute({ children }) {
   const { token } = useAuth();
 
-  if (!token || isTokenExpired(token)) {
+  // Simple token check — could expand later with expiry validation
+  if (!token) {
     return <Navigate to="/login" replace />;
   }
 
