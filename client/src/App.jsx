@@ -59,8 +59,4 @@ function App() {
 
 export default App;
 
-export function useAuth() {
-  return useContext(AuthContext);
-}
-
 
