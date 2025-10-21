@@ -97,8 +97,10 @@ export function AuthProvider({ children }) {
   }, [token, refreshAccessToken, logout]);
 
 const login = async (username, password) => {
+  const url = `${process.env.REACT_APP_API_BASE_URL}/api/login`;
+  console.log("Login URL:", url);  // Log the full URL here
   try {
-    const res = await fetch(`${process.env.REACT_APP_API_BASE_URL}/api/login`, {
+    const res = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ username, password }),
