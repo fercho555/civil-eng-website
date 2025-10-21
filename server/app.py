@@ -480,4 +480,5 @@ def register():
 
     return jsonify({"message": "Registration successful"}), 201    
 if __name__ == '__main__':
+    print(app.url_map)
     app.run(debug=True, threaded=True,port=5000)
