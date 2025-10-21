@@ -74,6 +74,12 @@ export function AuthProvider({ children }) {
 
   // Wrapper around fetch for authenticated calls with auto-refresh
   const authFetch = useCallback(async (url, options = {}) => {
+   const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000';
+
+  // Prepend base URL if url is relative
+  if (!url.startsWith('http')) {
+    url = `${API_BASE_URL}${url.startsWith('/') ? '' : '/'}${url}`;
+  }
     let headers = options.headers ? { ...options.headers } : {};
     if (token) headers['Authorization'] = `Bearer ${token}`;
 
