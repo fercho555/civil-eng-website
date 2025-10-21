@@ -37,7 +37,7 @@ const allReturnPeriods = ['2', '5', '10', '25', '50', '100'];
 
 const MvpIdfViewerV2 = () => {
   console.log('MvpIdfViewerV2 component rendered');
-  const { user, token } = useAuth();
+  const { user, token, authFetch } = useAuth();
   console.log('Current user at mount:', user, typeof user);
   const [station, setStation] = useState(null);
   const [idfData, setIDFData] = useState([]);
@@ -168,7 +168,7 @@ const MvpIdfViewerV2 = () => {
     }
 
     try {
-      const response = await fetch(`${API_BASE_URL}/nearest-station?lat=${lat}&lon=${lon}&province=${provinceCode}`, {
+      const response = await fetch(`${API_BASE_URL}/api/nearest-station?lat=${lat}&lon=${lon}&province=${provinceCode}`, {
       credentials: 'include'
       });
       if (!response.ok) {
@@ -181,7 +181,7 @@ const MvpIdfViewerV2 = () => {
       console.log('Found nearest station:', nearestStation);
       
       // Modified fetch call that includes Authorization header with token:
-     const idfResponse = await fetch(`${API_BASE_URL}/idf/curves?stationId=${nearestStation.stationId}`, {
+     const idfResponse = await authFetch(`${API_BASE_URL}/api/idf/curves?stationId=${nearestStation.stationId}`, {
         credentials: 'include',
         headers: {
           Authorization: `Bearer ${token}`,
@@ -193,6 +193,7 @@ const MvpIdfViewerV2 = () => {
         throw new Error(errorData.error || 'Failed to fetch IDF data.');
       }
       const idfJson = await idfResponse.json();
+      
       console.log('Raw IDF data from API:', idfJson.data);
 
       const processedData = idfJson.data.map((item, index) => {

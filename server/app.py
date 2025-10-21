@@ -9,11 +9,14 @@ from dotenv import load_dotenv
 from pathlib import Path
 import logging
 from datetime import datetime, timezone, timedelta, UTC
-from werkzeug.security import check_password_hash
+from werkzeug.security import generate_password_hash, check_password_hash
 import jwt
 from free_access import require_trial_access
 from flask import g, request
 from bson import ObjectId
+import base64
+import scrypt
+import bcrypt
 
 app = Flask(__name__, static_folder='../build', static_url_path='/')
 CORS(app, resources={r"/api/*": {"origins": "http://localhost:3000"}}, supports_credentials=True)
@@ -33,8 +36,61 @@ def create_jwt(user):
     token = jwt.encode(payload, SECRET_KEY, algorithm="HS256")
     return token
 # Now you can access variables
-def verify_password(plain_password, hashed_password):
-    return check_password_hash(hashed_password, plain_password)
+def verify_password(plain_password, password_hash):
+    if not password_hash:
+        return False
+    if password_hash.startswith('pbkdf2:sha256:') or password_hash.startswith('pbkdf2:sha256$'):
+        return check_password_hash(password_hash, plain_password)
+    elif password_hash.startswith('$2b$') or password_hash.startswith('$2a$'):
+        # Use bcrypt directly
+        return bcrypt.checkpw(plain_password.encode('utf-8'), password_hash.encode('utf-8'))
+
+    elif password_hash.startswith('scrypt:'):
+        try:
+            parts = password_hash.split('$')
+            if len(parts) == 4:
+                _, params, salt_b64, key_b64 = parts
+                salt = base64.b64decode(salt_b64)
+                key = base64.b64decode(key_b64)
+                derived = scrypt.hash(plain_password, salt, N=32768, r=8, p=1, buflen=len(key))
+                return derived == key
+            else:
+                return False
+        except Exception as e:
+            print(f"Error verifying scrypt hash: {e}")
+            return False
+    else:
+        # Unsupported hash format
+        return False
+def legacy_verify(pw, hash_val):
+    # Defensive unwrap if hash_val is tuple or list
+    if isinstance(hash_val, (tuple, list)):
+        hash_val = hash_val[0] if hash_val else ''
+    
+    if not isinstance(hash_val, str):
+        logging.warning(f"Password hash is not string: {hash_val}")
+        return False
+    
+    try:
+        if hash_val.startswith('scrypt:'):
+            parts = hash_val.split('$')
+            if len(parts) == 4:
+                _, params, salt_b64, key_b64 = parts
+                salt = base64.b64decode(salt_b64)
+                key = base64.b64decode(key_b64)
+                derived = scrypt.hash(pw, salt, N=32768, r=8, p=1, buflen=len(key))
+                return derived == key
+            else:
+                logging.warning(f"Malformed scrypt hash structure: {hash_val}")
+                return False
+        elif hash_val.startswith('$2b$') or hash_val.startswith('$2a$'):
+            return bcrypt.checkpw(pw.encode('utf-8'), hash_val.encode('utf-8'))
+        else:
+            logging.warning(f"Unsupported hash format: {hash_val}")
+            return False
+    except Exception as e:
+        logging.error(f"Exception in legacy_verify for hash {hash_val}: {e}")
+        return False
 @app.errorhandler(Exception)
 def handle_exception(e):
     logging.error("An error occurred", exc_info=e)
@@ -54,6 +110,42 @@ def decode_token(token):
         return None
     except jwt.InvalidTokenError:
         return None
+# Inserted Refresh token endpoint    
+@app.route('/api/auth/refresh-token', methods=['POST'])
+def refresh_token():
+    data = request.get_json()
+    refresh_token = data.get('token')
+
+    if not refresh_token:
+        return jsonify({"error": "Refresh token required"}), 400
+
+    try:
+        payload = jwt.decode(refresh_token, SECRET_KEY, algorithms=["HS256"])
+        user_id = payload.get('sub')
+        if not user_id:
+            raise jwt.InvalidTokenError("Invalid token payload")
+
+        user = users_collection.find_one({'_id': ObjectId(user_id)})
+        if not user:
+            return jsonify({"error": "User not found"}), 404
+
+        # Issue new access token
+        new_access_token = create_jwt(user)
+
+        # Optional: issue new refresh token for rotation
+        new_refresh_token = refresh_token  # Change if you implement rotation
+
+        return jsonify({
+            "accessToken": new_access_token,
+            "refreshToken": new_refresh_token
+        })
+
+    except jwt.ExpiredSignatureError:
+        return jsonify({"error": "Refresh token expired"}), 401
+    except jwt.InvalidTokenError:
+        return jsonify({"error": "Invalid refresh token"}), 401
+    except Exception as e:
+        return jsonify({"error": "Refresh token error", "details": str(e)}), 500    
 # Global data structures to be populated
 IDF_DATA = {}
 STATIONS_DATA_BY_PROVINCE = {}
@@ -352,6 +444,40 @@ def login():
                 'role': user.get('role', 'user')
             }
         })
-    return jsonify({'error': 'Invalid credentials'}), 401    
+    return jsonify({'error': 'Invalid credentials'}), 401
+@app.route('/api/register', methods=['POST'])
+def register():
+    data = request.get_json()
+    username = data.get('username')
+    password = data.get('password')
+
+    # Validate input
+    if not username or not password:
+        return jsonify({"error": "Username and password required"}), 400
+
+    # Check if user already exists
+    if db.users.find_one({'username': username}):
+        return jsonify({"error": "Username already taken"}), 409
+
+    # Create hashed password and store!
+    password_hash = generate_password_hash(password, method='pbkdf2:sha256')
+    now = datetime.now(timezone.utc)
+    trial_days = 7
+    trial_start = now
+    trial_end = now + timedelta(days=trial_days)
+    user_doc = {
+        "username": username,
+        "password_hash": password_hash,
+        "role": "user",
+        "trial_active": True,
+        "trial_start": trial_start,
+        "trial_end": trial_end,
+        "trial_days": trial_days
+    }
+    db.users.insert_one(user_doc)
+
+    
+
+    return jsonify({"message": "Registration successful"}), 201    
 if __name__ == '__main__':
     app.run(debug=True, threaded=True,port=5000)

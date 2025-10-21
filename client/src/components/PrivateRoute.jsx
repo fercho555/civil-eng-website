@@ -4,10 +4,11 @@ import { Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { isTokenExpired } from '../utils/auth-utils';
 
-export function PrivateRoute({ children }) {
-  const { token } = useAuth();
+export const PrivateRoute = ({ children }) => {
 
-  if (!token || isTokenExpired(token)) {
+  const { user } = useAuth();
+
+  if (!user) {
     return <Navigate to="/login" replace />;
   }
 

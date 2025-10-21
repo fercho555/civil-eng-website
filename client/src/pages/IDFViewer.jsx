@@ -1,10 +1,12 @@
 import React, { useEffect, useState, useMemo } from "react";
+import { useAuth } from "../context/AuthContext"; 
 import LocationSearch from '../components/LocationSearch'; // Adjust path to your component
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
 } from "recharts";
 
 export default function IDFViewer() {
+  const { authFetch } = useAuth(); // ADD THIS LINE
   const [stationsMasterList, setStationsMasterList] = useState([]);
   const [selectedStation, setSelectedStation] = useState(null);
 
@@ -34,7 +36,35 @@ export default function IDFViewer() {
     setProvince(station.provinceCode || '');
     setMode('station');
   };
+// New place selection handler
+const handlePlaceSelected = (place) => {
+  if (!place || !place.geometry || !place.geometry.location) {
+    console.error("No valid place selected.");
+    setSelectedStation(null);
+    setPlace('');
+    setProvince('');
+    setMode('place');
+    return;
+  }
 
+  const lat = place.geometry.location.lat();
+  const lon = place.geometry.location.lng();
+  const placeName = place.formatted_address || place.name || '';
+  
+  let provinceCode = '';
+  if (place.address_components) {
+    const provinceComp = place.address_components.find(comp =>
+      comp.types.includes('administrative_area_level_1')
+    );
+    if (provinceComp) provinceCode = provinceComp.short_name;
+  }
+
+  setPlace(placeName);
+  setProvince(provinceCode);
+  setMode('place');
+  setSelectedStation(null);
+};
+  
   // Determine the effective stationId to query by
   const effectiveStationId = selectedStation ? selectedStation.stationId : stationId;
 
@@ -57,7 +87,7 @@ export default function IDFViewer() {
       setLoading(true);
       setError(null);
       try {
-        const res = await fetch(query);
+        const res = await authFetch(query);
         if (!res.ok) throw new Error(`HTTP error: ${res.status}`);
         const json = await res.json();
         setData(json);
@@ -69,7 +99,7 @@ export default function IDFViewer() {
       }
     }
     fetchCurves();
-  }, [query]);
+  }, [query, authFetch]);
 
   // Prepare data for the chart from API response
   const chartData = useMemo(() => {
@@ -92,7 +122,7 @@ export default function IDFViewer() {
       {/* Location search with loaded stations */}
       <LocationSearch
         stations={stationsMasterList}
-        onStationSelected={handleStationSelected}
+        onLocationSelect={handleStationSelected}
       />
 
       {/* Existing UI controls */}

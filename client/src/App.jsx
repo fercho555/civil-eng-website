@@ -9,11 +9,12 @@ import Footer from './components/Footer.jsx';
 import AdminDashboard from './pages/AdminDashboard.jsx';
 import MvpIdfViewerV2 from './pages/MvpIdfViewerV2.jsx';
 import TestAutocomplete from './pages/TestAutocomplete.jsx';
-import { PrivateRoute } from './components/PrivateRoute';
+import { PrivateRoute } from './components/PrivateRoute.jsx';
 import LoginPage from './pages/LoginPage.jsx';
 import ContactForm from './components/ContactForm';
-import { AdminRoute } from './components/AdminRoute';
+import { AdminRoute } from './components/AdminRoute.jsx';
 import PricingPage from './components/PricingPage';
+import Signup from './pages/Signup.jsx';  // Create this component
 
 function App() {
   return (
@@ -30,7 +31,7 @@ function App() {
           <Route path="/pricing" element={<PricingPage />} />
           <Route path="/test-autocomplete" element={<TestAutocomplete />} />
           <Route path="/idf-viewer" element={<MvpIdfViewerV2 />} />
-
+          <Route path="/signup" element={<Signup />} />
           {/* Protected Routes */}
           <Route
             path="/start"

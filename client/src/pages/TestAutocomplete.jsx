@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import Autocomplete from 'react-google-autocomplete';
+import { Autocomplete } from '@react-google-maps/api';
 
 const TestAutocomplete = () => {
   const [selectedPlace, setSelectedPlace] = useState(null);

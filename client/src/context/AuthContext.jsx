@@ -19,13 +19,13 @@ export function AuthProvider({ children }) {
   const refreshAccessToken = useCallback(async () => {
     if (!refreshToken) {
       logout();
-      return;
+      return null;
     }
     try {
       const res = await fetch(`${process.env.REACT_APP_API_BASE_URL}/api/auth/refresh-token`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token: refreshToken }), // match backend expected key
+        body: JSON.stringify({ token: refreshToken }),
       });
 
       if (res.ok) {
@@ -37,16 +37,19 @@ export function AuthProvider({ children }) {
           setRefreshToken(data.refreshToken);
           localStorage.setItem('refreshToken', data.refreshToken);
         }
+        return data.accessToken;
       } else {
         logout();
+        return null;
       }
     } catch (err) {
       console.error('Refresh token error:', err);
       logout();
+      return null;
     }
   }, [refreshToken, logout]);
 
-  // Auto-refresh token shortly before expiry (optional step)
+  // Auto-refresh token shortly before expiry (optional)
   useEffect(() => {
     if (!token) return;
 
@@ -62,7 +65,6 @@ export function AuthProvider({ children }) {
     if (!payload || !payload.exp) return;
 
     const expiresInMs = payload.exp * 1000 - Date.now();
-
     const timeoutId = setTimeout(() => {
       refreshAccessToken();
     }, expiresInMs - 60000);
@@ -70,19 +72,51 @@ export function AuthProvider({ children }) {
     return () => clearTimeout(timeoutId);
   }, [token, refreshAccessToken]);
 
-  const login = (userData, accessToken, newRefreshToken) => {
-    setUser(userData);
-    setToken(accessToken);
-    setRefreshToken(newRefreshToken);
-    localStorage.setItem('user', JSON.stringify(userData));
-    localStorage.setItem('accessToken', accessToken);
-    if (newRefreshToken) {
-      localStorage.setItem('refreshToken', newRefreshToken);
+  // Wrapper around fetch for authenticated calls with auto-refresh
+  const authFetch = useCallback(async (url, options = {}) => {
+    let headers = options.headers ? { ...options.headers } : {};
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+
+    let res = await fetch(url, { ...options, headers });
+    if (res.status === 401) {
+      const newToken = await refreshAccessToken();
+      if (newToken) {
+        headers['Authorization'] = `Bearer ${newToken}`;
+        res = await fetch(url, { ...options, headers });
+      } else {
+        logout();
+      }
     }
-  };
+    return res;
+  }, [token, refreshAccessToken, logout]);
+
+const login = async (username, password) => {
+  try {
+    const res = await fetch(`${process.env.REACT_APP_API_BASE_URL}/api/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password }),
+    });
+
+    if (!res.ok) return false;
+
+    const data = await res.json();
+    // data should contain user info, accessToken, refreshToken
+    setUser(data.user);
+    setToken(data.accessToken);
+    setRefreshToken(data.refreshToken);
+    localStorage.setItem('user', JSON.stringify(data.user));
+    localStorage.setItem('accessToken', data.accessToken);
+    localStorage.setItem('refreshToken', data.refreshToken);
+    return true;
+  } catch (err) {
+    console.error('Login error:', err);
+    return false;
+  }
+};
 
   return (
-    <AuthContext.Provider value={{ user, token, refreshToken, login, logout }}>
+    <AuthContext.Provider value={{ user, token, refreshToken, login, logout, authFetch }}>
       {children}
     </AuthContext.Provider>
   );
@@ -91,4 +125,3 @@ export function AuthProvider({ children }) {
 export function useAuth() {
   return useContext(AuthContext);
 }
-
