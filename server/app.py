@@ -26,7 +26,7 @@ CORS(app, resources={r"/api/*": {"origins": ["http://localhost:3000", "https://c
 def before_request_func():
     if request.method == 'OPTIONS':
         response = make_response()
-        response.headers.add("Access-Control-Allow-Origin", "https://www.civispec.com")
+        response.headers.add("Access-Control-Allow-Origin", "https://civil-eng-website-1ugh.vercel.app")
         response.headers.add('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
         response.headers.add("Access-Control-Allow-Headers", "Content-Type, Authorization")
         response.headers.add('Access-Control-Allow-Credentials', 'true')
@@ -455,7 +455,7 @@ def login():
                 'role': user.get('role', 'user')
             }
         })
-    return jsonify({'error': 'Invalid credentials'}), 401
+    return jsonify({'message': 'Login endpoint'}), 401
 @app.route('/api/register', methods=['POST'])
 def register():
     data = request.get_json()
