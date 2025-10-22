@@ -403,9 +403,9 @@ def idf_curves():
         print(f"An error occurred while processing IDF curves: {e}")
         return jsonify({"error": "An internal server error occurred."}), 500
 
-# @app.route('/')
-# def index():
-#     return app.send_static_file('index.html')
+@app.route('/')
+def index():
+    return {"message": "Backend service is running"}, 200
 @app.route('/api/contact', methods=['GET', 'POST'])
 def get_contact_submissions():
     if request.method == 'GET':
@@ -489,7 +489,13 @@ def register():
 
     
 
-    return jsonify({"message": "Registration successful"}), 201    
+    return jsonify({"message": "Registration successful"}), 201  
+@app.errorhandler(404)
+def not_found(e):
+    return jsonify({"error": "Not Found", "message": "The requested URL was not found on the server."}), 404  
 if __name__ == '__main__':
+    port = int(os.environ.get('PORT', 10000))  # Render uses 10000 by default
+    app.run(host='0.0.0.0', port=port)
+
     print(app.url_map)
     app.run(debug=True, threaded=True,port=5000)
