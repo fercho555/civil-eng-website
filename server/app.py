@@ -19,7 +19,9 @@ import scrypt
 import bcrypt
 
 app = Flask(__name__, static_folder='../build', static_url_path='/')
-CORS(app, resources={r"/api/*": {"origins": "http://localhost:3000"}}, supports_credentials=True)
+# CORS(app, resources={r"/api/*": {"origins": "http://localhost:3000"}}, supports_credentials=True)
+CORS(app, resources={r"/api/*": {"origins": ["http://localhost:3000", "https://civil-eng-website-1ugh.vercel.app"]}}, supports_credentials=True)
+
 #logging.basicConfig(level=logging.DEBUG)
 # Construct absolute path to your client/.env file
 env_path = Path(__file__).parent.parent / 'client' / '.env'
