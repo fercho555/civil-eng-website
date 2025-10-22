@@ -8,7 +8,7 @@ from pymongo import MongoClient
 from dotenv import load_dotenv
 from pathlib import Path
 import logging
-from datetime import datetime, timezone, timedelta, UTC
+from datetime import datetime, timezone, timedelta
 from werkzeug.security import generate_password_hash, check_password_hash
 import jwt
 from free_access import require_trial_access
@@ -30,8 +30,8 @@ def create_jwt(user):
         "sub": str(user["_id"]),   # User ID
         "username": user["username"],
         "role": user.get("role", "user"),
-        "iat": datetime.now(UTC),
-        "exp": datetime.now(UTC) + timedelta(hours=1)  # Token expires in 1 hour
+        "iat": datetime.now(timezone.utc),
+        "exp": datetime.now(timezone.utc) + timedelta(hours=1)  # Token expires in 1 hour
     }
     token = jwt.encode(payload, SECRET_KEY, algorithm="HS256")
     return token

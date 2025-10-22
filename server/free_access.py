@@ -2,7 +2,7 @@
 
 from functools import wraps
 from flask import request, jsonify, g
-from datetime import datetime, timedelta, timezone, UTC
+from datetime import datetime, timedelta, timezone
 from pymongo import MongoClient
 import os
 
