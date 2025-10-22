@@ -394,9 +394,9 @@ def idf_curves():
         print(f"An error occurred while processing IDF curves: {e}")
         return jsonify({"error": "An internal server error occurred."}), 500
 
-@app.route('/')
-def index():
-    return app.send_static_file('index.html')
+# @app.route('/')
+# def index():
+#     return app.send_static_file('index.html')
 @app.route('/api/contact', methods=['GET', 'POST'])
 def get_contact_submissions():
     if request.method == 'GET':
