@@ -17,11 +17,20 @@ from bson import ObjectId
 import base64
 import scrypt
 import bcrypt
+from flask import make_response, request
 
 app = Flask(__name__, static_folder='../build', static_url_path='/')
-# CORS(app, resources={r"/api/*": {"origins": "http://localhost:3000"}}, supports_credentials=True)
-CORS(app, resources={r"/api/*": {"origins": ["http://localhost:3000", "https://civil-eng-website-1ugh.vercel.app"]}}, supports_credentials=True)
 
+CORS(app, resources={r"/api/*": {"origins": ["http://localhost:3000", "https://civil-eng-website-1ugh.vercel.app"]}}, supports_credentials=True)
+@app.before_request
+def before_request_func():
+    if request.method == 'OPTIONS':
+        response = make_response()
+        response.headers.add("Access-Control-Allow-Origin", "https://www.civispec.com")
+        response.headers.add('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
+        response.headers.add("Access-Control-Allow-Headers", "Content-Type, Authorization")
+        response.headers.add('Access-Control-Allow-Credentials', 'true')
+        return response
 #logging.basicConfig(level=logging.DEBUG)
 # Construct absolute path to your client/.env file
 env_path = Path(__file__).parent.parent / 'client' / '.env'
