@@ -193,7 +193,7 @@ def create_app():
 
     from api.user_routes import user_bp
 
-    app.register_blueprint(user_bp, url_prefix='/api/user')
+    app.register_blueprint(user_bp, url_prefix='/api')
 
     @app.before_request
     def before_request_func():
@@ -499,4 +499,5 @@ if __name__ == '__main__':
     app = create_app()
     port = int(os.environ.get('PORT', 10000))
     print(app.url_map)
-    app.run(debug=True, threaded=True, port=port)
+    #app.run(debug=True, threaded=True, port=port)
+    app.run(host="0.0.0.0", port=port)
