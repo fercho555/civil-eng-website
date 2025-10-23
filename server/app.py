@@ -190,9 +190,9 @@ def create_app():
     mongo.init_app(app)
     jwt_manager.init_app(app)
     CORS(app, resources={r"/api/*": {"origins": ["http://localhost:3000", "https://civil-eng-website-1ugh.vercel.app"]}}, supports_credentials=True)
-
+    
     from api.user_routes import user_bp
-
+    CORS(user_bp, supports_credentials=True)
     app.register_blueprint(user_bp, url_prefix='/api')
 
     @app.before_request
@@ -200,10 +200,10 @@ def create_app():
         if request.method == 'OPTIONS':
             response = make_response()
             response.headers.add("Access-Control-Allow-Origin", "https://civil-eng-website-1ugh.vercel.app")
-            response.headers.add('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
+            response.headers.add('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE,OPTIONS')
             response.headers.add("Access-Control-Allow-Headers", "Content-Type, Authorization")
             response.headers.add('Access-Control-Allow-Credentials', 'true')
-            return response
+            return response, 200
 
     SECRET_KEY = os.getenv("JWT_SECRET_KEY", "your_secret_here")
 
