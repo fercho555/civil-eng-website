@@ -198,17 +198,27 @@ def create_app():
     #         return  # This immediately returns for preflight requests, bypassing JWT checks.
     
     #CORS(user_bp, supports_credentials=True)
+    VERCEL_PREVIEW_REGEX = re.compile(r'^https:\/\/[a-z0-9-]+\.vercel\.app$')
+
+    # Add your known frontend domains you want to allow here as well
+    EXTRA_ALLOWED_ORIGINS = {
+        "http://localhost:3000",
+        "https://civispec.com",
+        "https://civil-eng-website-1ugh.vercel.app",
+    }
     @app.before_request
     def handle_options():
         if request.method == 'OPTIONS':
+            origin = request.headers.get("Origin")
+            if not origin:
+                return make_response("No Origin header", 403)
+
+            # Allow if origin matches Vercel preview regex OR explicit allow list
+            if origin not in EXTRA_ALLOWED_ORIGINS and not VERCEL_PREVIEW_REGEX.match(origin):
+                return make_response("Origin not allowed", 403)
+
             response = make_response()
-            # Match exact frontend origin; do *not* use '*'
-            allowed_origin = request.headers.get("Origin", "")
-            allowed_origins = ["http://localhost:3000", "https://civil-eng-website-1ugh.vercel.app"]
-            if allowed_origin not in allowed_origins:
-                # Respond forbidden if the origin isn't allowed
-                return response, 403
-            response.headers.add("Access-Control-Allow-Origin", allowed_origin)
+            response.headers.add("Access-Control-Allow-Origin", origin)
             response.headers.add("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
             response.headers.add("Access-Control-Allow-Headers", "Content-Type, Authorization")
             response.headers.add("Access-Control-Allow-Credentials", "true")
