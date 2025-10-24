@@ -202,10 +202,16 @@ def create_app():
     def handle_options():
         if request.method == 'OPTIONS':
             response = make_response()
-            response.headers.add("Access-Control-Allow-Origin", "https://civil-eng-website-1ugh.vercel.app")
-            response.headers.add('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE,OPTIONS')
+            # Match exact frontend origin; do *not* use '*'
+            allowed_origin = request.headers.get("Origin", "")
+            allowed_origins = ["http://localhost:3000", "https://civil-eng-website-1ugh.vercel.app"]
+            if allowed_origin not in allowed_origins:
+                # Respond forbidden if the origin isn't allowed
+                return response, 403
+            response.headers.add("Access-Control-Allow-Origin", allowed_origin)
+            response.headers.add("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
             response.headers.add("Access-Control-Allow-Headers", "Content-Type, Authorization")
-            response.headers.add('Access-Control-Allow-Credentials', 'true')
+            response.headers.add("Access-Control-Allow-Credentials", "true")
             return response, 200
     from api.user_routes import user_bp
     app.register_blueprint(user_bp, url_prefix='/api')
