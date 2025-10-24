@@ -192,14 +192,14 @@ def create_app():
     mongo.init_app(app)
     jwt_manager.init_app(app)
     CORS(app, resources={r"/api/*": {"origins": ["http://localhost:3000", "https://civil-eng-website-1ugh.vercel.app"]}}, supports_credentials=True)
+    # @app.before_request
+    # def skip_jwt_for_options():
+    #     if request.method == 'OPTIONS':
+    #         return  # This immediately returns for preflight requests, bypassing JWT checks.
+    
+    #CORS(user_bp, supports_credentials=True)
     @app.before_request
-    def skip_jwt_for_options():
-        if request.method == 'OPTIONS':
-            return  # This immediately returns for preflight requests, bypassing JWT checks.
-    from api.user_routes import user_bp
-    CORS(user_bp, supports_credentials=True)
-    @app.before_request
-    def before_request_func():
+    def handle_options():
         if request.method == 'OPTIONS':
             response = make_response()
             response.headers.add("Access-Control-Allow-Origin", "https://civil-eng-website-1ugh.vercel.app")
@@ -207,6 +207,7 @@ def create_app():
             response.headers.add("Access-Control-Allow-Headers", "Content-Type, Authorization")
             response.headers.add('Access-Control-Allow-Credentials', 'true')
             return response, 200
+    from api.user_routes import user_bp
     app.register_blueprint(user_bp, url_prefix='/api')
 
     SECRET_KEY = os.getenv("JWT_SECRET_KEY", "your_secret_here")
