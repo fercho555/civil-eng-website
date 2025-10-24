@@ -5,6 +5,7 @@ from flask_jwt_extended import create_access_token
 from werkzeug.security import check_password_hash
 from flask_pymongo import PyMongo  # (only needed if you access mongo here)
 from bson.json_util import dumps  # for potential user serialization
+from db import mongo
 
 user_bp = Blueprint('user_bp', __name__)
 
@@ -27,10 +28,8 @@ def login():
         return jsonify({"error": "Missing username or password"}), 400
 
     # Import your mongo object. Usually you initialized PyMongo as mongo = PyMongo(app) in app.py
-    from flask import current_app
-    mongo = current_app.extensions['pymongo']
-
     user = mongo.db.users.find_one({"username": username})
+
     if user is None or not check_password_hash(user["password_hash"], password):
         return jsonify({"error": "Invalid username or password"}), 401
 
