@@ -23,6 +23,8 @@ from flask_jwt_extended import JWTManager, jwt_required, get_jwt_identity
 from free_access import require_trial_access  # Assuming you have this module
 
 
+logging.basicConfig(level=logging.DEBUG)  # or logging.INFO to reduce verbosity
+
 # Load env variables early
 env_path = Path(__file__).parent.parent / 'client' / '.env'
 load_dotenv(dotenv_path=env_path)
@@ -182,7 +184,7 @@ jwt_manager = JWTManager()
 # Create app factory:
 def create_app():
     app = Flask(__name__, static_folder='../build', static_url_path='/')
-
+    app.logger.setLevel(logging.DEBUG)  # Set Flask's app logger level
     app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'default_secret')
     app.config['MONGO_URI'] = os.getenv('MONGO_URI', 'mongodb://localhost:27017/')
 
@@ -442,22 +444,22 @@ def create_app():
             mongo.db.contacts.insert_one(contact_doc)
             return jsonify({"status": "success", "message": "Submission received"}), 201
 
-    @app.route('/api/login', methods=['POST'])
-    def login():
-        data = request.get_json()
-        username = data.get("username")
-        password = data.get("password")
+    # @app.route('/api/login', methods=['POST'])
+    # def login():
+    #     data = request.get_json()
+    #     username = data.get("username")
+    #     password = data.get("password")
 
-        user = mongo.db.users.find_one({"username": username})
-        if not user or not check_password_hash(user['password_hash'], password):
-            return jsonify({"error": "Invalid username or password"}), 401
+    #     user = mongo.db.users.find_one({"username": username})
+    #     if not user or not check_password_hash(user['password_hash'], password):
+    #         return jsonify({"error": "Invalid username or password"}), 401
 
-        payload = {
-            'sub': username,
-            'exp': datetime.now(timezone.utc) + timedelta(hours=1)
-        }
-        token = jwt.encode(payload, app.config['SECRET_KEY'], algorithm='HS256')
-        return jsonify({"token": token, "user": {"username": username}}), 200
+    #     payload = {
+    #         'sub': username,
+    #         'exp': datetime.now(timezone.utc) + timedelta(hours=1)
+    #     }
+    #     token = jwt.encode(payload, app.config['SECRET_KEY'], algorithm='HS256')
+    #     return jsonify({"token": token, "user": {"username": username}}), 200
 
     @app.route('/api/register', methods=['POST'])
     def register():
