@@ -196,8 +196,6 @@ def create_app():
             return  # This immediately returns for preflight requests, bypassing JWT checks.
     from api.user_routes import user_bp
     CORS(user_bp, supports_credentials=True)
-    app.register_blueprint(user_bp, url_prefix='/api')
-
     @app.before_request
     def before_request_func():
         if request.method == 'OPTIONS':
@@ -207,6 +205,7 @@ def create_app():
             response.headers.add("Access-Control-Allow-Headers", "Content-Type, Authorization")
             response.headers.add('Access-Control-Allow-Credentials', 'true')
             return response, 200
+    app.register_blueprint(user_bp, url_prefix='/api')
 
     SECRET_KEY = os.getenv("JWT_SECRET_KEY", "your_secret_here")
 
