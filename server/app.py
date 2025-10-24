@@ -190,7 +190,10 @@ def create_app():
     mongo.init_app(app)
     jwt_manager.init_app(app)
     CORS(app, resources={r"/api/*": {"origins": ["http://localhost:3000", "https://civil-eng-website-1ugh.vercel.app"]}}, supports_credentials=True)
-    
+    @app.before_request
+    def skip_jwt_for_options():
+        if request.method == 'OPTIONS':
+            return  # This immediately returns for preflight requests, bypassing JWT checks.
     from api.user_routes import user_bp
     CORS(user_bp, supports_credentials=True)
     app.register_blueprint(user_bp, url_prefix='/api')
