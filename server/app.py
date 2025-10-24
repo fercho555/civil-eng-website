@@ -198,7 +198,8 @@ def create_app():
     # def skip_jwt_for_options():
     #     if request.method == 'OPTIONS':
     #         return  # This immediately returns for preflight requests, bypassing JWT checks.
-    
+    print("MONGO_URI:", app.config.get('MONGO_URI'))
+    print("mongo.db:", mongo.db)
     #CORS(user_bp, supports_credentials=True)
     VERCEL_PREVIEW_REGEX = re.compile(r'^https:\/\/[a-z0-9-]+\.vercel\.app$')
 

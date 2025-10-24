@@ -6,9 +6,9 @@ from werkzeug.security import check_password_hash
 from flask_pymongo import PyMongo  # (only needed if you access mongo here)
 from bson.json_util import dumps  # for potential user serialization
 from db import mongo
-
+import logging
 user_bp = Blueprint('user_bp', __name__)
-
+logger = logging.getLogger(__name__)
 @user_bp.route('/profile')
 @jwt_required()
 def profile():
@@ -21,6 +21,9 @@ def profile():
 
 @user_bp.route('/login', methods=['POST'])
 def login():
+    print(f"mongo object: {mongo}")
+    print(f"mongo.db object: {mongo.db}")
+    logger.info(f"mongo.db in login: {mongo.db}")
     data = request.get_json()
     username = data.get("username")
     password = data.get("password")
