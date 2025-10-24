@@ -121,7 +121,7 @@ except Exception as e:
     exit()
 
 # Flask-PyMongo instance globally:
-mongo = PyMongo()
+
 
 # Helper functions at module level for reusability and clarity:
 
@@ -187,7 +187,7 @@ def create_app():
     app.logger.setLevel(logging.DEBUG)  # Set Flask's app logger level
     app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'default_secret')
     app.config['MONGO_URI'] = os.getenv('MONGO_URI', 'mongodb://localhost:27017/')
-
+    mongo = PyMongo(app)
     # Initialize PyMongo with app
     mongo.init_app(app)
     jwt_manager.init_app(app)
