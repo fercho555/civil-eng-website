@@ -192,6 +192,9 @@ def create_app():
     app.config['MONGO_URI'] = os.getenv('MONGO_URI')
     # Initialize PyMongo with app
     mongo.init_app(app)
+    # Explicitly assign db in case auto detection fails
+    mongo.cx = mongo.cx  # the MongoClient instance
+    mongo.db = mongo.cx.get_database('contactDB')  # name must match your deployed db name
     jwt_manager.init_app(app)
     #CORS(app, resources={r"/api/*": {"origins": ["http://localhost:3000", "https://civil-eng-website-1ugh.vercel.app", "https://civispec.com"]}}, supports_credentials=True)
     CORS(
