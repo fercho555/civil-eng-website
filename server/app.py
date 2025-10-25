@@ -193,7 +193,21 @@ def create_app():
     # Initialize PyMongo with app
     mongo.init_app(app)
     jwt_manager.init_app(app)
-    CORS(app, resources={r"/api/*": {"origins": ["http://localhost:3000", "https://civil-eng-website-1ugh.vercel.app"]}}, supports_credentials=True)
+    #CORS(app, resources={r"/api/*": {"origins": ["http://localhost:3000", "https://civil-eng-website-1ugh.vercel.app", "https://civispec.com"]}}, supports_credentials=True)
+    CORS(
+    app,
+    resources={
+        r"/api/*": {
+            "origins": [
+                "http://localhost:3000",
+                "https://civil-eng-website-1ugh.vercel.app",
+                "https://civispec.com"
+            ]
+        }
+    },
+    supports_credentials=True
+)
+
     # @app.before_request
     # def skip_jwt_for_options():
     #     if request.method == 'OPTIONS':
