@@ -193,8 +193,12 @@ def create_app():
     # Initialize PyMongo with app
     mongo.init_app(app)
     # Explicitly assign db in case auto detection fails
-    mongo.cx = mongo.cx  # the MongoClient instance
-    mongo.db = mongo.cx.get_database('contactDB')  # name must match your deployed db name
+   
+    # Explicitly set the db attribute on the mongo extension instance:
+    if mongo.cx:  # mongo.cx is the PyMongo MongoClient instance
+        # Extract database name from the URI and assign it to mongo.db
+        database_name = app.config['MONGO_URI'].rsplit('/', 1)[-1].split('?')[0]
+        mongo.db = mongo.cx.get_database(database_name)  
     jwt_manager.init_app(app)
     #CORS(app, resources={r"/api/*": {"origins": ["http://localhost:3000", "https://civil-eng-website-1ugh.vercel.app", "https://civispec.com"]}}, supports_credentials=True)
     CORS(
