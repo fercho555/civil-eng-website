@@ -3,12 +3,13 @@
 from functools import wraps
 from flask import request, jsonify, g
 from datetime import datetime, timedelta, timezone
-from pymongo import MongoClient
+#from pymongo import MongoClient
+from db import mongo  # Use the shared Flask-PyMongo instance
+
 import os
 
 # Set up your DB connection here (or import from your main app module)
-client = MongoClient(os.getenv('MONGO_URI'))
-db = client['contactDB']
+db = mongo.db
 
 DEFAULT_TRIAL_DAYS = 7  # configurable default
 
@@ -33,7 +34,7 @@ def is_trial_active(user):
         return False
 
 def require_trial_access(f):
-    from functools import wraps
+    
     @wraps(f)
     def decorated_function(*args, **kwargs):
         from flask import g, jsonify

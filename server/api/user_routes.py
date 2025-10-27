@@ -3,9 +3,10 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from flask import request, jsonify
 from flask_jwt_extended import create_access_token
 from werkzeug.security import check_password_hash
-from flask_pymongo import PyMongo  # (only needed if you access mongo here)
+#from flask_pymongo import PyMongo  # (only needed if you access mongo here)
 from bson.json_util import dumps  # for potential user serialization
 from db import mongo
+from flask import current_app
 import logging
 user_bp = Blueprint('user_bp', __name__)
 logger = logging.getLogger(__name__)
@@ -21,9 +22,9 @@ def profile():
 
 @user_bp.route('/login', methods=['POST'])
 def login():
-    print(f"mongo object: {mongo}")
-    print(f"mongo.db object: {mongo.db}")
-    logger.info(f"mongo.db in login: {mongo.db}")
+    current_app.logger.info(f"mongo.db in login route: {mongo.db}")
+    
+  
     data = request.get_json()
     username = data.get("username")
     password = data.get("password")
